@@ -93,6 +93,7 @@ builder.Services.AddScoped<SlotQueryService>();
 builder.Services.AddScoped<LocationResolver>();
 builder.Services.AddScoped<BookingCommandService>();
 builder.Services.AddScoped<TravelRouteService>();
+builder.Services.AddScoped<SchemaPlaceResolver>();
 builder.Services.AddScoped<SchemaDayService>();
 builder.Services.AddDataProtection();
 builder.Services.AddScoped<PublicBookingTokenService>();
@@ -109,6 +110,7 @@ builder.Services.AddScoped<NotificationDispatcher>();
 builder.Services.AddScoped<BookingNotifier>();
 builder.Services.AddScoped<NotificationJobs>();
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<DriveLogService>();
 builder.Services.AddScoped<Equine.Infrastructure.Tokens.ConsumedMagicLinkStore>();
 builder.Services.AddSingleton<DnsDeliverabilityChecker>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
@@ -492,11 +494,30 @@ async Task SeedAdminUser(WebApplication app)
         NormalizedUserName = adminEmail.ToUpperInvariant()
     };
 
+    foreach (var validator in userManager.PasswordValidators)
+    {
+        var passwordCheck = await validator.ValidateAsync(userManager, adminUser, adminPassword);
+        if (passwordCheck.Succeeded)
+            continue;
+
+        var policyErrors = string.Join(", ", passwordCheck.Errors.Select(e => e.Description));
+        Log.Fatal(
+            "Admin user was not created for {Email}. Admin__Password does not meet policy: {Errors}. " +
+            "Use at least 12 characters with upper, lower, digit, and symbol.",
+            adminEmail,
+            policyErrors);
+        if (app.Environment.IsDevelopment())
+            throw new InvalidOperationException($"Admin seed failed for {adminEmail}: {policyErrors}");
+        return;
+    }
+
     var result = await userManager.CreateAsync(adminUser, adminPassword);
     if (!result.Succeeded)
     {
         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-        Log.Error("Failed to create admin user: {Errors}", errors);
+        Log.Fatal("Failed to create admin user {Email}: {Errors}", adminEmail, errors);
+        if (app.Environment.IsDevelopment())
+            throw new InvalidOperationException($"Admin seed failed for {adminEmail}: {errors}");
         return;
     }
     await userManager.AddToRoleAsync(adminUser, "Admin");
@@ -686,11 +707,13 @@ async Task EnableExtensions(EquineDbContext context)
             ""Longitude"" numeric NULL,
             ""Phone"" varchar(50) NULL,
             ""Email"" varchar(255) NULL,
+            ""VehicleRegistrationNumber"" varchar(16) NULL,
             ""UpdatedAt"" timestamptz NOT NULL DEFAULT now()
         );
         ALTER TABLE ""practice_settings"" ADD COLUMN IF NOT EXISTS ""AddressStreet"" varchar(200) NULL;
         ALTER TABLE ""practice_settings"" ADD COLUMN IF NOT EXISTS ""AddressPostcode"" varchar(10) NULL;
         ALTER TABLE ""practice_settings"" ADD COLUMN IF NOT EXISTS ""AddressCity"" varchar(100) NULL;
+        ALTER TABLE ""practice_settings"" ADD COLUMN IF NOT EXISTS ""VehicleRegistrationNumber"" varchar(16) NULL;
         UPDATE ""practice_settings"" SET ""AddressStreet"" = COALESCE(""AddressStreet"", '');
         UPDATE ""practice_settings"" SET ""AddressPostcode"" = COALESCE(""AddressPostcode"", '');
         UPDATE ""practice_settings"" SET ""AddressCity"" = COALESCE(""AddressCity"", '');

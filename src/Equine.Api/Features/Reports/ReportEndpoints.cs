@@ -15,6 +15,7 @@ public static class ReportEndpoints
         group.MapGet("/uteblivna", GetNoShows).WithName("ReportNoShows");
         group.MapGet("/klientaktivitet", GetDormant).WithName("ReportDormant");
         group.MapGet("/bokningskallor", GetSources).WithName("ReportSources");
+        group.MapGet("/korjournal", GetDriveLog).WithName("ReportDriveLog");
 
         return app;
     }
@@ -158,6 +159,46 @@ public static class ReportEndpoints
             return CsvFile(csv, "bokningskallor.csv");
         }
         return Results.Ok(rows);
+    }
+
+    private static async Task<IResult> GetDriveLog(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? format,
+        DriveLogService driveLog,
+        CancellationToken ct)
+    {
+        var range = DefaultRange(from, to);
+        var report = await driveLog.GetAsync(range.From, range.To, ct);
+        if (IsCsv(format))
+        {
+            var csv = CsvExporter.ToCsv(
+                [
+                    "Datum", "Starttid", "Startadress", "Slutadress", "Km", "Ärende",
+                    "Besökta platser", "Kontakt", "Hästar", "Behandlingar", "Förare", "Registreringsnummer"
+                ],
+                report.Trips.Select(t => new object?[]
+                {
+                    t.Date,
+                    t.StartsAt,
+                    t.FromAddress,
+                    t.ToAddress,
+                    t.DistanceKm,
+                    t.Purpose,
+                    t.PlaceVisited,
+                    t.Contacts,
+                    t.Horses,
+                    t.Treatments,
+                    t.DriverName,
+                    t.VehicleRegistrationNumber
+                }));
+            return CsvFile(csv, "korjournal.csv");
+        }
+
+        if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
+            return Results.File(DriveLogPdf.Render(report), "application/pdf", "korjournal.pdf");
+
+        return Results.Ok(report);
     }
 
     private static (DateOnly From, DateOnly To) DefaultRange(DateOnly? from, DateOnly? to)

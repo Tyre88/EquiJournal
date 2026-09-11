@@ -46,10 +46,22 @@ public sealed class PracticeSettingsService
         decimal? longitude,
         string phone,
         string email,
+        string? vehicleRegistrationNumber = null,
         CancellationToken cancellationToken = default)
     {
         var row = await GetAsync(cancellationToken);
-        row.Update(name, clinic, address, addressStreet, addressPostcode, addressCity, latitude, longitude, phone, email);
+        row.Update(
+            name,
+            clinic,
+            address,
+            addressStreet,
+            addressPostcode,
+            addressCity,
+            latitude,
+            longitude,
+            phone,
+            email,
+            vehicleRegistrationNumber ?? row.VehicleRegistrationNumber);
         await _db.SaveChangesAsync(cancellationToken);
         return row;
     }
@@ -68,6 +80,7 @@ public sealed class PracticeSettingsService
             row.Latitude ?? _fallback.Latitude,
             row.Longitude ?? _fallback.Longitude,
             string.IsNullOrWhiteSpace(row.Phone) ? _fallback.Phone : row.Phone,
-            string.IsNullOrWhiteSpace(row.Email) ? _fallback.Email : row.Email);
+            string.IsNullOrWhiteSpace(row.Email) ? _fallback.Email : row.Email,
+            row.VehicleRegistrationNumber);
     }
 }

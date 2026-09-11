@@ -17,6 +17,7 @@ public class PracticeSettings : Entity
     public decimal? Longitude { get; private set; }
     public string Phone { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
+    public string VehicleRegistrationNumber { get; private set; } = string.Empty;
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
     private PracticeSettings() : base(SingletonId)
@@ -35,7 +36,8 @@ public class PracticeSettings : Entity
         decimal? latitude,
         decimal? longitude,
         string phone,
-        string email)
+        string email,
+        string? vehicleRegistrationNumber = null)
     {
         Name = name.Trim();
         Clinic = clinic.Trim();
@@ -49,6 +51,14 @@ public class PracticeSettings : Entity
         Longitude = longitude;
         Phone = phone.Trim();
         Email = email.Trim();
+        VehicleRegistrationNumber = NormalizeVehicleRegistration(vehicleRegistrationNumber);
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public static string NormalizeVehicleRegistration(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var collapsed = string.Join(" ", value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return collapsed.Length <= 16 ? collapsed.ToUpperInvariant() : collapsed[..16].Trim().ToUpperInvariant();
     }
 }

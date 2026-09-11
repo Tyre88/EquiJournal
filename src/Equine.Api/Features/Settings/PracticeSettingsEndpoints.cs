@@ -78,6 +78,7 @@ public static class PracticeSettingsEndpoints
                 longitude,
                 request.Phone ?? "",
                 request.Email ?? "",
+                request.VehicleRegistrationNumber ?? current.VehicleRegistrationNumber,
                 ct);
             return Results.Ok(ToDto(s, maps.Value.BrowserKey));
         }).WithName("UpdatePracticeSettings");
@@ -97,6 +98,7 @@ public static class PracticeSettingsEndpoints
         s.Longitude,
         s.Phone,
         s.Email,
+        s.VehicleRegistrationNumber,
         MapsBrowserKey = mapsBrowserKey ?? ""
     };
 }
@@ -111,4 +113,5 @@ public sealed record PracticeSettingsUpdateRequest(
     decimal? Latitude,
     decimal? Longitude,
     string? Phone,
-    string? Email);
+    string? Email,
+    string? VehicleRegistrationNumber = null);

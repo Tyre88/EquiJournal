@@ -4,13 +4,40 @@ import { EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { Api } from '../api';
 import { ApiErrorService } from '../api-error.service';
 
-type ReportId = 'behandlingar' | 'intakter' | 'uppfoljningar' | 'osignerade' | 'uteblivna' | 'klientaktivitet' | 'bokningskallor';
+type ReportId = 'behandlingar' | 'intakter' | 'uppfoljningar' | 'osignerade' | 'uteblivna' | 'klientaktivitet' | 'bokningskallor' | 'korjournal';
 
 interface ReportDef {
   id: ReportId;
   title: string;
   hasRange: boolean;
   hasMonths?: boolean;
+  hasPdf?: boolean;
+}
+
+interface DriveLogMeta {
+  driverName: string;
+  clinic: string;
+  vehicleRegistrationNumber: string;
+  from: string;
+  to: string;
+  tripCount: number;
+  totalKm: number;
+  disclaimer: string;
+}
+
+interface DriveLogTrip {
+  date: string;
+  startsAt: string;
+  fromAddress: string;
+  toAddress: string;
+  distanceKm: number | null;
+  purpose: string;
+  placeVisited: string;
+  contacts: string;
+  horses: string;
+  treatments: string;
+  driverName: string;
+  vehicleRegistrationNumber: string;
 }
 
 @Component({
@@ -19,7 +46,7 @@ interface ReportDef {
   imports: [FormsModule, EjPageHeaderComponent],
   template: `
     <div class="page">
-      <ej-page-header title="Rapporter" subtitle="Exportera data som CSV med svensk formatering." />
+      <ej-page-header title="Rapporter" [subtitle]="subtitle()" />
 
       <div class="card report-tabs" role="tablist">
         @for (r of reports; track r.id) {
@@ -44,11 +71,25 @@ interface ReportDef {
             <input id="months" class="input" type="number" min="1" max="60" [(ngModel)]="months" inputmode="numeric" />
           </div>
         }
+        @if (active() === 'korjournal') {
+          <p class="muted">Beräknad tjänstekörning från bokningar. Komplettera manuellt om Skatteverket begär mätarställning eller privata resor.</p>
+        }
         <div class="actions-bar">
           <button type="button" class="btn-primary" (click)="load()" [disabled]="loading()">Visa</button>
           <button type="button" class="btn-secondary" (click)="exportCsv()">Exportera CSV</button>
+          @if (current()?.hasPdf) {
+            <button type="button" class="btn-secondary" (click)="exportPdf()">Exportera PDF</button>
+          }
         </div>
       </div>
+
+      @if (driveMeta(); as meta) {
+        <div class="card meta">
+          <p><strong>{{ meta.clinic }}</strong> · Förare: {{ meta.driverName }} · Regnr: {{ meta.vehicleRegistrationNumber || '—' }}</p>
+          <p>{{ meta.tripCount }} resor · {{ meta.totalKm }} km totalt</p>
+          <p class="muted">{{ meta.disclaimer }}</p>
+        </div>
+      }
 
       @if (loading()) { <p class="loading">Laddar…</p> }
       @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -83,6 +124,9 @@ interface ReportDef {
     .table-wrap { overflow-x: auto; }
     .data-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
     .data-table th, .data-table td { padding: 0.5rem; border-bottom: 1px solid var(--color-border); text-align: left; }
+    .muted { margin: 0 0 1rem; color: var(--color-muted, #5c5c5c); }
+    .meta p { margin: 0 0 0.35rem; }
+    .actions-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; }
   `]
 })
 export class ReportsComponent implements OnInit {
@@ -97,7 +141,8 @@ export class ReportsComponent implements OnInit {
     { id: 'osignerade', title: 'Osignerade', hasRange: false },
     { id: 'uteblivna', title: 'Uteblivna', hasRange: true },
     { id: 'klientaktivitet', title: 'Vilande kunder', hasRange: false, hasMonths: true },
-    { id: 'bokningskallor', title: 'Bokningskällor', hasRange: true }
+    { id: 'bokningskallor', title: 'Bokningskällor', hasRange: true },
+    { id: 'korjournal', title: 'Körjournal', hasRange: true, hasPdf: true }
   ];
 
   active = signal<ReportId>('behandlingar');
@@ -109,6 +154,7 @@ export class ReportsComponent implements OnInit {
   error = signal('');
   columns = signal<string[]>([]);
   rows = signal<string[][]>([]);
+  driveMeta = signal<DriveLogMeta | null>(null);
 
   ngOnInit(): void {
     const today = new Date();
@@ -123,10 +169,17 @@ export class ReportsComponent implements OnInit {
     return this.reports.find(r => r.id === this.active());
   }
 
+  subtitle(): string {
+    return this.active() === 'korjournal'
+      ? 'Tjänsteresor från bokningar, som CSV eller PDF för svensk körjournal.'
+      : 'Exportera data som CSV med svensk formatering.';
+  }
+
   select(id: ReportId): void {
     this.active.set(id);
     this.loaded.set(false);
     this.rows.set([]);
+    this.driveMeta.set(null);
     this.load();
   }
 
@@ -155,30 +208,56 @@ export class ReportsComponent implements OnInit {
   }
 
   exportCsv(): void {
+    this.download('csv', `${this.active()}.csv`, 'CSV exporterad.');
+  }
+
+  exportPdf(): void {
+    this.download('pdf', 'korjournal.pdf', 'PDF exporterad.');
+  }
+
+  private download(format: 'csv' | 'pdf', filename: string, success: string): void {
     const id = this.active();
-    const params: Record<string, string | number> = { format: 'csv' };
+    const params: Record<string, string | number> = { format };
     if (this.current()?.hasRange) {
       params['from'] = this.from;
       params['to'] = this.to;
     }
     if (this.current()?.hasMonths) params['months'] = this.months;
     this.api.downloadGet(`/api/app/reports/${id}`, params).subscribe({
-      next: blob => this.saveBlob(blob, `${id}.csv`),
+      next: blob => this.saveBlob(blob, filename, success),
       error: err => this.toast.error(this.errors.message(err))
     });
   }
 
-  private saveBlob(blob: Blob, filename: string): void {
+  private saveBlob(blob: Blob, filename: string, success: string): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    this.toast.success('CSV exporterad.');
+    this.toast.success(success);
   }
 
   private applyData(id: ReportId, data: unknown): void {
+    this.driveMeta.set(null);
+    if (id === 'korjournal') {
+      const report = data as { meta?: DriveLogMeta; trips?: DriveLogTrip[] };
+      this.driveMeta.set(report.meta ?? null);
+      this.columns.set(['Datum', 'Tid', 'Från', 'Till', 'Km', 'Ärende', 'Besök', 'Kontakt']);
+      this.rows.set((report.trips ?? []).map(t => [
+        t.date?.slice?.(0, 10) ?? t.date,
+        t.startsAt ? t.startsAt.slice(11, 16) : '',
+        t.fromAddress,
+        t.toAddress,
+        t.distanceKm == null ? '—' : String(t.distanceKm),
+        t.purpose,
+        t.placeVisited,
+        t.contacts
+      ]));
+      return;
+    }
+
     const arr = Array.isArray(data) ? data : (data as { clients?: unknown[] })?.clients ?? [];
     switch (id) {
       case 'behandlingar':

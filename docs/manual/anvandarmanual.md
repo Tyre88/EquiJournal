@@ -33,6 +33,12 @@ Osignerade utkast syns under **Journaler → Utkast** och påminns efter 24 timm
 
 **Inställningar → Widget**: tillåtna webbplatser, villkor, länk till integritetspolicy. Klistra in loader-scriptet på den publika sajten.
 
+## Körjournal
+
+**Rapporter → Körjournal** tar fram tjänsteresor från bokningar i valt datumintervall. En rad är en körning (inte en behandling). Hemresa läggs till efter sista stoppet och vid längre luckor.
+
+Exportera som CSV eller PDF. Fyll i **Inställningar → Verksamhet → Registreringsnummer** så det följer med. Körsträckan är beräknad via vägdata, inte mätarställning. Privata resor ingår inte.
+
 ## Export och säkerhet
 
 **Inställningar → Exportera**: fullständigt arkiv (ZIP) och journal-PDF per häst. Använd vid byta system eller inspektion.

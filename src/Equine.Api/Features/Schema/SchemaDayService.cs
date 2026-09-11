@@ -1,9 +1,7 @@
 using Equine.Domain.Entities;
-using Equine.Domain.Locations;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Practice;
-using Equine.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Api.Features.Schema;
@@ -15,15 +13,18 @@ public sealed class SchemaDayService
     private readonly EquineDbContext _db;
     private readonly TravelRouteService _travel;
     private readonly PracticeSettingsService _practice;
+    private readonly SchemaPlaceResolver _places;
 
     public SchemaDayService(
         EquineDbContext db,
         TravelRouteService travel,
-        PracticeSettingsService practice)
+        PracticeSettingsService practice,
+        SchemaPlaceResolver places)
     {
         _db = db;
         _travel = travel;
         _practice = practice;
+        _places = places;
     }
 
     public async Task<SchemaDayDto> GetAsync(DateOnly? date, CancellationToken cancellationToken)
@@ -54,7 +55,7 @@ public sealed class SchemaDayService
         foreach (var line in ordered)
         {
             var location = line.Visit.Location;
-            var coords = await ResolveStopCoordsAsync(location, line, cancellationToken);
+            var coords = await _places.ResolveStopCoordsAsync(location, line, cancellationToken);
             if (location is not null && coords is not null && (location.Latitude is null || location.Longitude is null))
             {
                 location.Update(
@@ -67,7 +68,7 @@ public sealed class SchemaDayService
                 locationsDirty = true;
             }
 
-            var placeKey = PlaceKey(location, coords);
+            var placeKey = SchemaPlaces.PlaceKey(location, coords);
             var starts = line.Visit.DeriveLineStart(line);
             var ends = line.Visit.DeriveLineEnd(line);
             var origin = SchemaTravel.Origin(previousEndsAt, previousPlace, starts, placeKey);
@@ -117,118 +118,10 @@ public sealed class SchemaDayService
     private async Task<HomeResolution> ResolveHomeAsync(CancellationToken cancellationToken)
     {
         var practitioner = await _practice.GetAsync(cancellationToken);
-        (double Lat, double Lon)? coords = null;
-        if (practitioner.Latitude is not null && practitioner.Longitude is not null)
-            coords = ((double)practitioner.Latitude.Value, (double)practitioner.Longitude.Value);
-        else
-        {
-            foreach (var query in HomeQueries(practitioner))
-            {
-                coords = await _travel.GeocodeAsync(query, cancellationToken);
-                if (coords is not null) break;
-            }
-        }
-
-        var address = string.IsNullOrWhiteSpace(practitioner.Address)
-            ? AddressNormalization.FormatDisplay(practitioner.AddressStreet, practitioner.AddressPostcode, practitioner.AddressCity)
-            : practitioner.Address;
-
+        var home = await _places.ResolveHomeAsync(practitioner, cancellationToken);
         return new HomeResolution(
-            new SchemaHomeDto(practitioner.Name, address, coords?.Lat, coords?.Lon),
-            coords);
-    }
-
-    private static IEnumerable<string> HomeQueries(PracticeSettings practice)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var query in new[]
-        {
-            AddressNormalization.FormatDisplay(practice.AddressStreet, practice.AddressPostcode, practice.AddressCity),
-            practice.Address,
-            AddressNormalization.FormatDisplay(null, practice.AddressPostcode, practice.AddressCity),
-            practice.AddressCity
-        })
-        {
-            var trimmed = query?.Trim() ?? "";
-            if (trimmed.Length == 0 || !seen.Add(trimmed)) continue;
-            yield return trimmed;
-        }
-    }
-
-    private async Task<(double Lat, double Lon)?> ResolveStopCoordsAsync(
-        Location? location,
-        BookingLine line,
-        CancellationToken cancellationToken)
-    {
-        if (location?.Latitude is not null && location.Longitude is not null)
-            return ((double)location.Latitude.Value, (double)location.Longitude.Value);
-        if (line.Horse?.StableLatitude is not null && line.Horse.StableLongitude is not null)
-            return ((double)line.Horse.StableLatitude.Value, (double)line.Horse.StableLongitude.Value);
-        if (line.Owner?.Latitude is not null && line.Owner.Longitude is not null)
-            return ((double)line.Owner.Latitude.Value, (double)line.Owner.Longitude.Value);
-
-        foreach (var query in AddressQueries(location, line))
-        {
-            var coords = await _travel.GeocodeAsync(query, cancellationToken);
-            if (coords is not null) return coords;
-        }
-
-        return null;
-    }
-
-    private static IEnumerable<string> AddressQueries(Location? location, BookingLine line)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var query in CandidateQueries(location, line))
-        {
-            var trimmed = query.Trim();
-            if (trimmed.Length == 0 || !seen.Add(trimmed)) continue;
-            yield return trimmed;
-        }
-    }
-
-    private static IEnumerable<string> CandidateQueries(Location? location, BookingLine line)
-    {
-        var places = new (string? Street, string? Postcode, string? City)[]
-        {
-            (location?.AddressStreet, location?.AddressPostcode, location?.AddressCity),
-            (line.Horse?.StableAddress, line.Horse?.StablePostcode, line.Horse?.StableCity),
-            (line.Owner?.AddressStreet, line.Owner?.AddressPostcode, line.Owner?.AddressCity)
-        };
-
-        foreach (var (street, postcode, city) in places)
-        {
-            var full = JoinAddress(street, postcode, city);
-            if (!string.IsNullOrWhiteSpace(full)) yield return full;
-        }
-
-        foreach (var (_, postcode, city) in places)
-        {
-            var town = JoinAddress(postcode, city);
-            if (!string.IsNullOrWhiteSpace(town)) yield return town;
-            if (!string.IsNullOrWhiteSpace(city)) yield return city!;
-        }
-
-        if (!string.IsNullOrWhiteSpace(location?.Name) && location.Name.Length > 3)
-        {
-            yield return location.Name;
-            var namedTown = JoinAddress(location.Name, location.AddressCity);
-            if (!string.IsNullOrWhiteSpace(namedTown)) yield return namedTown;
-        }
-    }
-
-    private static string JoinAddress(params string?[] parts) =>
-        string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
-
-    private static string? PlaceKey(Location? location, (double Lat, double Lon)? coords)
-    {
-        if (location is not null && !string.IsNullOrWhiteSpace(location.NormalizedKey) && !location.NormalizedKey.StartsWith("id:", StringComparison.Ordinal))
-            return location.NormalizedKey;
-        if (location?.Id is { } id)
-            return "loc:" + id.ToString("N");
-        if (coords is not null)
-            return $"{coords.Value.Lat:F4},{coords.Value.Lon:F4}";
-        return null;
+            new SchemaHomeDto(home.Name, home.Address, home.Coords?.Lat, home.Coords?.Lon),
+            home.Coords);
     }
 
     private static string PreviousLabel(BookingLine? previous)

@@ -18,6 +18,7 @@ public class PracticeSettingsConfiguration : IEntityTypeConfiguration<PracticeSe
         builder.Property(s => s.AddressCity).HasMaxLength(100).HasConversion(v => v ?? "", v => v ?? "");
         builder.Property(s => s.Phone).HasMaxLength(50);
         builder.Property(s => s.Email).HasMaxLength(255);
+        builder.Property(s => s.VehicleRegistrationNumber).HasMaxLength(16).HasConversion(v => v ?? "", v => v ?? "");
         builder.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
     }
 }

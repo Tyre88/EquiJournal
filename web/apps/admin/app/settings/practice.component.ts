@@ -15,6 +15,7 @@ interface Practice {
   longitude?: number | null;
   phone: string;
   email: string;
+  vehicleRegistrationNumber?: string;
   mapsBrowserKey?: string;
 }
 
@@ -34,6 +35,14 @@ interface Practice {
         <div class="field"><label class="field-label" for="clinic">Klinik</label><input id="clinic" class="input" [(ngModel)]="p.clinic" /></div>
         <div class="field"><label class="field-label" for="phone">Telefon</label><input id="phone" class="input" type="tel" [(ngModel)]="p.phone" /></div>
         <div class="field"><label class="field-label" for="email">E-post</label><input id="email" class="input" type="email" [(ngModel)]="p.email" /></div>
+      </div>
+      <div class="card">
+        <h2 class="section-title">Fordon</h2>
+        <p class="muted">Registreringsnummer används i körjournalen som underlag för svensk loggning.</p>
+        <div class="field">
+          <label class="field-label" for="vehicleRegistrationNumber">Registreringsnummer</label>
+          <input id="vehicleRegistrationNumber" class="input" [(ngModel)]="p.vehicleRegistrationNumber" autocomplete="off" maxlength="16" />
+        </div>
       </div>
       <div class="card">
         <h2 class="section-title">Hemadress</h2>
@@ -128,6 +137,7 @@ export class PracticeSettingsComponent implements OnInit {
       longitude: value.longitude ?? null,
       phone: value.phone ?? '',
       email: value.email ?? '',
+      vehicleRegistrationNumber: value.vehicleRegistrationNumber ?? '',
       mapsBrowserKey: value.mapsBrowserKey ?? ''
     };
   }
