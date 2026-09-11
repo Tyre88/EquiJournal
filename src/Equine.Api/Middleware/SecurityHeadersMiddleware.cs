@@ -16,9 +16,14 @@ public sealed class SecurityHeadersMiddleware
         var path = context.Request.Path;
         if (!path.StartsWithSegments("/widget") && !path.StartsWithSegments("/api/public"))
         {
+            // Admin/portal index.html bootstraps theme with a tiny inline script before Angular loads.
+            var scriptSrc = path.StartsWithSegments("/admin") || path.StartsWithSegments("/portal")
+                ? "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com; "
+                : "script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; ";
+
             headers.ContentSecurityPolicy =
                 "default-src 'self'; " +
-                "script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; " +
+                scriptSrc +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                 "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com; " +
                 "font-src 'self' https://fonts.gstatic.com; " +

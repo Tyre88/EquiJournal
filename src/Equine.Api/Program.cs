@@ -355,9 +355,20 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 app.MapGet("/", () => Results.Redirect("/admin/"));
-app.MapFallbackToFile("/admin/{**path}", "/admin/index.html");
-app.MapFallbackToFile("/widget/{**path}", "/widget/index.html");
-app.MapFallbackToFile("/portal/{**path}", "/portal/index.html");
+app.MapFallback(async (HttpContext context) =>
+{
+    var path = context.Request.Path.Value ?? "";
+    string? folder = path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) ? "admin"
+        : path.StartsWith("/widget", StringComparison.OrdinalIgnoreCase) ? "widget"
+        : path.StartsWith("/portal", StringComparison.OrdinalIgnoreCase) ? "portal"
+        : null;
+
+    if (folder is null || Path.HasExtension(path))
+        return Results.NotFound();
+
+    var index = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", folder, "index.html");
+    return !File.Exists(index) ? Results.NotFound() : Results.File(index, "text/html");
+});
 
 app.Run();
 

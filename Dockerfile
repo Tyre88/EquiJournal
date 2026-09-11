@@ -27,9 +27,13 @@ RUN npm ci
 COPY web/apps/ ./apps/
 COPY web/libs/ ./libs/
 
-RUN npm run build:admin
-RUN npm run build:widget
-RUN npx ng build portal
+RUN npm run build:admin \
+    && npm run build:widget \
+    && npx ng build portal \
+    && test -f dist/admin/browser/index.html \
+    && test -n "$(ls dist/admin/browser/*.js)" \
+    && test -f dist/widget/browser/index.html \
+    && test -f dist/portal/browser/index.html
 
 FROM node:22-alpine AS loader-build
 WORKDIR /loader
