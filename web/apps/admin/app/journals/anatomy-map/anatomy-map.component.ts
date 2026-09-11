@@ -3,9 +3,25 @@ import { CommonModule } from '@angular/common';
 import {
   AnatomyAnnotation,
   AnatomyRegion,
+  AnatomyStroke,
   DEFAULT_FINDING_OPTIONS
 } from './anatomy-map.types';
 import { getAnatomyPreset } from './presets/horse-muscles-standard';
+
+type MapMode = 'mark' | 'draw';
+
+interface DrawPoint {
+  x: number;
+  y: number;
+}
+
+const DRAW_COLORS = [
+  { id: 'red', value: '#c0392b', label: 'Röd' },
+  { id: 'blue', value: '#2471a3', label: 'Blå' },
+  { id: 'black', value: '#1f1812', label: 'Svart' }
+] as const;
+
+const STROKE_WIDTH = 1.2;
 
 @Component({
   selector: 'app-anatomy-map',
@@ -13,7 +29,51 @@ import { getAnatomyPreset } from './presets/horse-muscles-standard';
   imports: [CommonModule],
   template: `
     <div class="anatomy-map">
-      <p class="hint">Tryck på ett muskelområde för att anteckna ett fynd.</p>
+      <p class="hint">{{ hintText }}</p>
+      @if (!readonly) {
+        <div class="toolbar" role="toolbar" aria-label="Anatomikarta">
+          <div class="mode-toggle" role="group" aria-label="Läge">
+            <button
+              type="button"
+              class="mode-btn"
+              [class.active]="mode() === 'mark'"
+              (click)="setMode('mark')"
+            >Markera</button>
+            <button
+              type="button"
+              class="mode-btn"
+              [class.active]="mode() === 'draw'"
+              (click)="setMode('draw')"
+            >Rita</button>
+          </div>
+          @if (mode() === 'draw') {
+            <div class="colors" role="group" aria-label="Färg">
+              @for (c of drawColors; track c.id) {
+                <button
+                  type="button"
+                  class="color-chip"
+                  [class.active]="drawColor() === c.value"
+                  [style.background]="c.value"
+                  [attr.aria-label]="c.label"
+                  (click)="drawColor.set(c.value)"
+                ></button>
+              }
+            </div>
+            <button
+              type="button"
+              class="tool-btn"
+              (click)="undoStroke()"
+              [disabled]="strokes.length === 0"
+            >Ångra</button>
+            <button
+              type="button"
+              class="tool-btn"
+              (click)="clearStrokes()"
+              [disabled]="strokes.length === 0"
+            >Rensa ritning</button>
+          }
+        </div>
+      }
       <div class="diagram-wrap">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -22,8 +82,13 @@ import { getAnatomyPreset } from './presets/horse-muscles-standard';
           preserveAspectRatio="xMidYMid meet"
           class="diagram"
           [class.readonly]="readonly"
+          [class.drawing]="isDrawingEnabled"
           role="img"
           aria-label="Anatomikarta, hästmuskler"
+          (pointerdown)="onPointerDown($event)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp($event)"
+          (pointercancel)="onPointerUp($event)"
         >
           <svg:rect
             x="0"
@@ -72,11 +137,35 @@ import { getAnatomyPreset } from './presets/horse-muscles-standard';
               [attr.fill]="regionFill(region.id)"
               [attr.stroke]="regionStroke(region.id)"
               stroke-width="0.28"
+              [style.pointer-events]="isDrawingEnabled ? 'none' : 'auto'"
               style="cursor:pointer"
               (click)="onRegionClick(region, $event)"
             >
               <svg:title>{{ region.label }} ({{ region.side === 'L' ? 'V' : 'H' }})</svg:title>
             </svg:polygon>
+          }
+
+          @for (stroke of strokes; track stroke.id) {
+            <svg:path
+              [attr.d]="stroke.d"
+              fill="none"
+              [attr.stroke]="stroke.color"
+              [attr.stroke-width]="stroke.width"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              pointer-events="none"
+            ></svg:path>
+          }
+          @if (draftPath()) {
+            <svg:path
+              [attr.d]="draftPath()"
+              fill="none"
+              [attr.stroke]="drawColor()"
+              [attr.stroke-width]="strokeWidth"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              pointer-events="none"
+            ></svg:path>
           }
         </svg>
       </div>
@@ -160,6 +249,40 @@ import { getAnatomyPreset } from './presets/horse-muscles-standard';
       font-size: 0.85rem;
       color: var(--color-text-muted, #5c6454);
     }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.85rem 0;
+    }
+    .mode-toggle { display: flex; gap: 0.25rem; }
+    .mode-btn, .tool-btn {
+      min-height: 40px;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--color-border-strong, #ccc);
+      background: var(--color-surface, #fff);
+      color: inherit;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .mode-btn.active {
+      background: var(--color-primary, #2d5016);
+      color: var(--color-text-inverse, #fff);
+      border-color: var(--color-primary, #2d5016);
+    }
+    .tool-btn:disabled { opacity: 0.45; cursor: default; }
+    .colors { display: flex; gap: 0.35rem; }
+    .color-chip {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+    .color-chip.active { border-color: var(--color-text, #243018); box-shadow: 0 0 0 2px #fff inset; }
     .diagram-wrap {
       padding: 0.5rem 0.75rem 0.85rem;
       background: #efe7d6;
@@ -171,6 +294,10 @@ import { getAnatomyPreset } from './presets/horse-muscles-standard';
       margin: 0 auto;
       min-height: 200px;
       height: auto;
+    }
+    .diagram.drawing {
+      touch-action: none;
+      cursor: crosshair;
     }
     .sheet {
       padding: 0.85rem 1rem 1rem;
@@ -234,12 +361,23 @@ export class AnatomyMapComponent {
   @Input() customImageUrl: string | null = null;
   @Input() findingOptions: string[] = DEFAULT_FINDING_OPTIONS;
   @Input() annotations: AnatomyAnnotation[] = [];
+  @Input() strokes: AnatomyStroke[] = [];
   @Input() readonly = false;
   @Output() annotationChange = new EventEmitter<AnatomyAnnotation[]>();
+  @Output() strokesChange = new EventEmitter<AnatomyStroke[]>();
 
+  readonly drawColors = DRAW_COLORS;
+  readonly strokeWidth = STROKE_WIDTH;
+
+  mode = signal<MapMode>('mark');
+  drawColor = signal<string>(DRAW_COLORS[0].value);
+  draftPath = signal('');
   selectedId = signal<string | null>(null);
   draftFinding = signal('');
   draftNote = signal('');
+
+  private drawing = false;
+  private draftPoints: DrawPoint[] = [];
 
   get diagram() {
     return getAnatomyPreset(this.presetId);
@@ -259,11 +397,27 @@ export class AnatomyMapComponent {
     return this.findingOptions?.length ? this.findingOptions : DEFAULT_FINDING_OPTIONS;
   }
 
+  get isDrawingEnabled(): boolean {
+    return !this.readonly && this.mode() === 'draw';
+  }
+
+  get hintText(): string {
+    if (this.readonly) return 'Markerade områden och ritning.';
+    return this.mode() === 'draw'
+      ? 'Rita på bilden med fingret eller musen.'
+      : 'Tryck på ett muskelområde för att anteckna ett fynd.';
+  }
+
   selectedRegion = computed(() => {
     const id = this.selectedId();
     if (!id) return null;
     return this.diagram.regions.find(r => r.id === id) ?? null;
   });
+
+  setMode(mode: MapMode): void {
+    this.mode.set(mode);
+    if (mode === 'draw') this.closeSheet();
+  }
 
   regionFill(id: string): string {
     if (this.isAnnotated(id)) return 'rgba(45,80,22,0.38)';
@@ -284,6 +438,7 @@ export class AnatomyMapComponent {
   }
 
   onRegionClick(region: AnatomyRegion, event: Event): void {
+    if (this.isDrawingEnabled) return;
     event.preventDefault();
     event.stopPropagation();
     this.openRegion(region);
@@ -321,10 +476,100 @@ export class AnatomyMapComponent {
     this.selectedId.set(null);
   }
 
+  onPointerDown(event: PointerEvent): void {
+    if (!this.isDrawingEnabled) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    const pt = this.toSvgPoint(event);
+    if (!pt) return;
+    try {
+      (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    } catch {
+      // Capture can fail for untrusted or already-released pointers.
+    }
+    this.drawing = true;
+    this.draftPoints = [pt];
+    this.draftPath.set(pointsToPath(this.draftPoints));
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    if (!this.drawing) return;
+    event.preventDefault();
+    const pt = this.toSvgPoint(event);
+    if (!pt) return;
+    const last = this.draftPoints[this.draftPoints.length - 1];
+    if (last && distance(last, pt) < 0.25) return;
+    this.draftPoints.push(pt);
+    this.draftPath.set(pointsToPath(this.draftPoints));
+  }
+
+  onPointerUp(event: PointerEvent): void {
+    if (!this.drawing) return;
+    event.preventDefault();
+    this.drawing = false;
+    const points = this.draftPoints;
+    this.draftPoints = [];
+    this.draftPath.set('');
+    if (points.length === 0) return;
+    const stroke: AnatomyStroke = {
+      id: nextStrokeId(),
+      color: this.drawColor(),
+      width: STROKE_WIDTH,
+      d: pointsToPath(points.length === 1 ? [points[0], { x: points[0].x + 0.01, y: points[0].y }] : points)
+    };
+    this.strokesChange.emit([...this.strokes, stroke]);
+  }
+
+  undoStroke(): void {
+    if (this.readonly || this.strokes.length === 0) return;
+    this.strokesChange.emit(this.strokes.slice(0, -1));
+  }
+
+  clearStrokes(): void {
+    if (this.readonly || this.strokes.length === 0) return;
+    this.strokesChange.emit([]);
+  }
+
   private openRegion(region: AnatomyRegion): void {
     this.selectedId.set(region.id);
     const existing = this.annotationFor(region.id);
     this.draftFinding.set(existing?.finding ?? '');
     this.draftNote.set(existing?.note ?? '');
   }
+
+  private toSvgPoint(event: PointerEvent): DrawPoint | null {
+    const svg = event.currentTarget as SVGSVGElement | null;
+    if (!svg?.createSVGPoint) return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    const mapped = pt.matrixTransform(ctm.inverse());
+    return { x: mapped.x, y: mapped.y };
+  }
+}
+
+function pointsToPath(points: DrawPoint[]): string {
+  if (points.length === 0) return '';
+  const first = points[0];
+  let d = `M ${round(first.x)} ${round(first.y)}`;
+  for (let i = 1; i < points.length; i++) {
+    d += ` L ${round(points[i].x)} ${round(points[i].y)}`;
+  }
+  return d;
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function distance(a: DrawPoint, b: DrawPoint): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function nextStrokeId(): string {
+  return `stroke_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }

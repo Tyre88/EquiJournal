@@ -15,10 +15,18 @@ export interface AnatomyAnnotation {
   note: string;
 }
 
+export interface AnatomyStroke {
+  id: string;
+  color: string;
+  width: number;
+  d: string;
+}
+
 export interface AnatomyMapValue {
   preset: string;
   customImageKey?: string | null;
   annotations: AnatomyAnnotation[];
+  strokes: AnatomyStroke[];
 }
 
 export interface AnatomySilhouette {
@@ -50,23 +58,41 @@ export const DEFAULT_ANATOMY_PRESET = 'horse-muscles-standard';
 export const DEFAULT_FINDING_OPTIONS = ['Ua', 'Öm', 'Spänd', 'Svullnad'];
 
 export function parseAnatomyMapValue(raw: unknown, fallbackPreset = DEFAULT_ANATOMY_PRESET): AnatomyMapValue {
-  if (!raw) return { preset: fallbackPreset, annotations: [] };
+  if (!raw) return { preset: fallbackPreset, annotations: [], strokes: [] };
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (!parsed || typeof parsed !== 'object') return { preset: fallbackPreset, annotations: [] };
+    if (!parsed || typeof parsed !== 'object') return { preset: fallbackPreset, annotations: [], strokes: [] };
     const obj = parsed as Partial<AnatomyMapValue>;
     const annotations = Array.isArray(obj.annotations)
       ? obj.annotations.filter((a): a is AnatomyAnnotation =>
           !!a && typeof a === 'object' && typeof a.regionId === 'string')
       : [];
+    const strokes = Array.isArray(obj.strokes)
+      ? obj.strokes.filter(isAnatomyStroke).map(s => ({
+          id: s.id,
+          color: s.color,
+          width: s.width,
+          d: s.d
+        }))
+      : [];
     return {
       preset: typeof obj.preset === 'string' && obj.preset ? obj.preset : fallbackPreset,
       customImageKey: typeof obj.customImageKey === 'string' ? obj.customImageKey : null,
-      annotations
+      annotations,
+      strokes
     };
   } catch {
-    return { preset: fallbackPreset, annotations: [] };
+    return { preset: fallbackPreset, annotations: [], strokes: [] };
   }
+}
+
+function isAnatomyStroke(value: unknown): value is AnatomyStroke {
+  if (!value || typeof value !== 'object') return false;
+  const s = value as Partial<AnatomyStroke>;
+  return typeof s.d === 'string' && s.d.length > 0
+    && typeof s.color === 'string' && s.color.length > 0
+    && typeof s.width === 'number' && s.width > 0
+    && typeof s.id === 'string' && s.id.length > 0;
 }
 
 export function isAnatomyMapValue(value: unknown): value is AnatomyMapValue {

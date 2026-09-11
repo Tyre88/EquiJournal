@@ -283,25 +283,33 @@ public class PdfExportService : IPdfExportService
             if (anns.GetArrayLength() == 0)
             {
                 lines.Add("Inga markerade områden");
-                return true;
+            }
+            else
+            {
+                foreach (var ann in anns.EnumerateArray())
+                {
+                    if (ann.ValueKind != JsonValueKind.Object) continue;
+                    var label = ann.TryGetProperty("label", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null;
+                    var regionId = ann.TryGetProperty("regionId", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null;
+                    var side = ann.TryGetProperty("side", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+                    var finding = ann.TryGetProperty("finding", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
+                    var note = ann.TryGetProperty("note", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
+                    var sideLabel = side is "L" or "l" ? "V" : side is "R" or "r" ? "H" : side;
+                    var name = string.IsNullOrWhiteSpace(label) ? regionId ?? "område" : label;
+                    var line = string.IsNullOrWhiteSpace(sideLabel)
+                        ? $"{name}: {finding ?? "—"}"
+                        : $"{name} ({sideLabel}): {finding ?? "—"}";
+                    if (!string.IsNullOrWhiteSpace(note))
+                        line += $" — {note}";
+                    lines.Add(line);
+                }
             }
 
-            foreach (var ann in anns.EnumerateArray())
+            if (root.TryGetProperty("strokes", out var strokes)
+                && strokes.ValueKind == JsonValueKind.Array
+                && strokes.GetArrayLength() > 0)
             {
-                if (ann.ValueKind != JsonValueKind.Object) continue;
-                var label = ann.TryGetProperty("label", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString() : null;
-                var regionId = ann.TryGetProperty("regionId", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null;
-                var side = ann.TryGetProperty("side", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
-                var finding = ann.TryGetProperty("finding", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
-                var note = ann.TryGetProperty("note", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
-                var sideLabel = side is "L" or "l" ? "V" : side is "R" or "r" ? "H" : side;
-                var name = string.IsNullOrWhiteSpace(label) ? regionId ?? "område" : label;
-                var line = string.IsNullOrWhiteSpace(sideLabel)
-                    ? $"{name}: {finding ?? "—"}"
-                    : $"{name} ({sideLabel}): {finding ?? "—"}";
-                if (!string.IsNullOrWhiteSpace(note))
-                    line += $" — {note}";
-                lines.Add(line);
+                lines.Add($"Friteckning: {strokes.GetArrayLength()} streck");
             }
 
             return true;

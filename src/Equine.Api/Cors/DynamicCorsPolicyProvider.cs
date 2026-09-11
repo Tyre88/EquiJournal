@@ -32,6 +32,8 @@ public sealed class DynamicCorsPolicyProvider : ICorsPolicyProvider
             origins.Add("http://127.0.0.1:4200");
             origins.Add("http://localhost:4201");
             origins.Add("http://127.0.0.1:4201");
+            origins.Add("http://localhost:4210");
+            origins.Add("http://127.0.0.1:4210");
         }
 
         if (string.Equals(policyName, PublicPolicy, StringComparison.OrdinalIgnoreCase)

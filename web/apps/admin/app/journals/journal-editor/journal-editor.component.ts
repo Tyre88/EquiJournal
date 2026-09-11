@@ -10,6 +10,7 @@ import { BodymapComponent, BodyMapMarker } from '../bodymap/bodymap.component';
 import { AnatomyMapComponent } from '../anatomy-map/anatomy-map.component';
 import {
   AnatomyAnnotation,
+  AnatomyStroke,
   DEFAULT_ANATOMY_PRESET,
   DEFAULT_FINDING_OPTIONS,
   parseAnatomyMapValue
@@ -325,7 +326,9 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
                             [customImageUrl]="anatomyImageUrls()[field.key] || null"
                             [findingOptions]="field.findingOptions ?? []"
                             [annotations]="anatomyAnnotations(field.key)"
+                            [strokes]="anatomyStrokes(field.key)"
                             (annotationChange)="onAnatomyChange(field, $event)"
+                            (strokesChange)="onAnatomyStrokesChange(field, $event)"
                           />
                         </div>
                       }
@@ -764,12 +767,26 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     return parseAnatomyMapValue(this.form.get('tpl_' + key)?.value).annotations;
   }
 
+  anatomyStrokes(key: string): AnatomyStroke[] {
+    return parseAnatomyMapValue(this.form.get('tpl_' + key)?.value).strokes;
+  }
+
   onAnatomyChange(field: TemplateField, annotations: AnatomyAnnotation[]): void {
     const current = parseAnatomyMapValue(this.form.get('tpl_' + field.key)?.value, field.preset);
+    this.setAnatomyValue(field, { ...current, annotations });
+  }
+
+  onAnatomyStrokesChange(field: TemplateField, strokes: AnatomyStroke[]): void {
+    const current = parseAnatomyMapValue(this.form.get('tpl_' + field.key)?.value, field.preset);
+    this.setAnatomyValue(field, { ...current, strokes });
+  }
+
+  private setAnatomyValue(field: TemplateField, current: ReturnType<typeof parseAnatomyMapValue>): void {
     const value = {
       preset: field.preset || current.preset || DEFAULT_ANATOMY_PRESET,
       customImageKey: field.customImageKey ?? current.customImageKey ?? null,
-      annotations
+      annotations: current.annotations,
+      strokes: current.strokes
     };
     if (!this.form.contains('tpl_' + field.key)) {
       this.form.addControl('tpl_' + field.key, this.fb.control(value));

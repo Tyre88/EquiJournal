@@ -144,6 +144,7 @@ interface JournalData {
                     [presetId]="anatomy.preset"
                     [customImageUrl]="anatomyImageUrls()[entry.key] || null"
                     [annotations]="anatomy.annotations"
+                    [strokes]="anatomy.strokes"
                     [readonly]="true"
                   />
                 } @else if (asBodyMapMarkers(entry.value); as markers) {
