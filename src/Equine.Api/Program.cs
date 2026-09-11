@@ -455,8 +455,11 @@ async Task BackfillAnatomyFindingOptions(EquineDbContext context)
             journalTemplateJson: migrated);
     }
 
+    var legacyPattern = $"%{FindingOptionsDefaults.LegacyFindingLabel}%";
     var journals = await context.JournalEntries
-        .Where(j => j.TemplateDataJson.Contains("Svullnad"))
+        .FromSqlRaw(
+            """SELECT * FROM "journal_entries" WHERE "TemplateDataJson"::text LIKE {0}""",
+            legacyPattern)
         .ToListAsync();
     foreach (var journal in journals)
     {
