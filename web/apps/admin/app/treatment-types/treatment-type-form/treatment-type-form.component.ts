@@ -1,6 +1,6 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { environment } from '../../../environments/environment';
@@ -33,229 +33,189 @@ interface TreatmentType {
 @Component({
   selector: 'app-treatment-type-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, TemplateBuilderComponent, EjPageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, TemplateBuilderComponent, EjPageHeaderComponent],
   template: `
-    <div class="page">
+    <div class="page page--narrow">
       <ej-page-header [title]="isEdit ? 'Redigera behandlingstyp' : 'Ny behandlingstyp'" backHref="/treatment-types" />
       @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
-      <form [formGroup]="treatmentForm" (ngSubmit)="onSubmit()" class="form-container">
-        <div class="form-sections">
-          <!-- Grundläggande -->
-          <div class="section">
-            <h2 class="section-title">Grundläggande</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="name">Namn <span class="required">*</span></label>
-                <input
-                  id="name"
-                  type="text"
-                  formControlName="name"
-                  placeholder="T.ex. Massering"
-                />
-                @if (name?.invalid && name?.touched) {
-                  <span class="error">Namn krävs</span>
-                }
-              </div>
-              <div class="form-group">
-                <label for="slug">Webbadress (slug)</label>
-                <input id="slug" type="text" formControlName="slug" placeholder="massage" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group full-width">
-                <label for="shortDescription">Kort beskrivning <span class="required">*</span></label>
-                <textarea
-                  id="shortDescription"
-                  formControlName="shortDescription"
-                  rows="2"
-                  placeholder="Kort beskrivning av behandlingstypen..."
-                ></textarea>
-                @if (shortDescription?.invalid && shortDescription?.touched) {
-                  <span class="error">Kort beskrivning krävs</span>
-                }
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group full-width">
-                <label for="publicDescription">Publik beskrivning</label>
-                <textarea
-                  id="publicDescription"
-                  formControlName="publicDescription"
-                  rows="3"
-                  placeholder="Beskrivning som syns för kunder (valfritt)..."
-                ></textarea>
-              </div>
-            </div>
-          </div>
+      <form class="card" [formGroup]="treatmentForm" (ngSubmit)="onSubmit()">
+        <h2 class="card-title">Grundläggande</h2>
+        <div class="field">
+          <label class="field-label required" for="name">Namn</label>
+          <input
+            id="name"
+            class="input"
+            type="text"
+            formControlName="name"
+            placeholder="T.ex. Massering"
+          />
+          @if (name?.invalid && name?.touched) {
+            <span class="field-error">Namn krävs</span>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="slug">Webbadress (slug)</label>
+          <input id="slug" class="input" type="text" formControlName="slug" placeholder="massage" />
+        </div>
+        <div class="field">
+          <label class="field-label required" for="shortDescription">Kort beskrivning</label>
+          <textarea
+            id="shortDescription"
+            class="input"
+            formControlName="shortDescription"
+            rows="2"
+            placeholder="Kort beskrivning av behandlingstypen..."
+          ></textarea>
+          @if (shortDescription?.invalid && shortDescription?.touched) {
+            <span class="field-error">Kort beskrivning krävs</span>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="publicDescription">Publik beskrivning</label>
+          <textarea
+            id="publicDescription"
+            class="input"
+            formControlName="publicDescription"
+            rows="3"
+            placeholder="Beskrivning som syns för kunder (valfritt)..."
+          ></textarea>
+        </div>
 
-          <!-- Tid -->
-          <div class="section">
-            <h2 class="section-title">Tid</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="durationMinutes">Duration (min) <span class="required">*</span></label>
-                <input
-                  id="durationMinutes"
-                  type="number"
-                  formControlName="durationMinutes"
-                  min="1"
-                />
-                @if (durationMinutes?.invalid && durationMinutes?.touched) {
-                  <span class="error">Duration krävs</span>
-                }
-              </div>
-              <div class="form-group">
-                <label for="bufferBeforeMinutes">Paus före (min)</label>
-                <input
-                  id="bufferBeforeMinutes"
-                  type="number"
-                  formControlName="bufferBeforeMinutes"
-                  min="0"
-                />
-              </div>
-              <div class="form-group">
-                <label for="bufferAfterMinutes">Paus efter (min)</label>
-                <input
-                  id="bufferAfterMinutes"
-                  type="number"
-                  formControlName="bufferAfterMinutes"
-                  min="0"
-                />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="maxAdvanceDays">Max i förväg (dagar)</label>
-                <input
-                  id="maxAdvanceDays"
-                  type="number"
-                  formControlName="maxAdvanceDays"
-                  min="0"
-                />
-              </div>
-              <div class="form-group">
-                <label for="followUpIntervalDays">Uppföljningsintervall (dagar)</label>
-                <input
-                  id="followUpIntervalDays"
-                  type="number"
-                  formControlName="followUpIntervalDays"
-                  min="0"
-                  placeholder="Tomt = inget krav"
-                />
-              </div>
-            </div>
-          </div>
+        <h2 class="card-title">Tid</h2>
+        <div class="field">
+          <label class="field-label required" for="durationMinutes">Duration (min)</label>
+          <input
+            id="durationMinutes"
+            class="input"
+            type="number"
+            formControlName="durationMinutes"
+            min="1"
+          />
+          @if (durationMinutes?.invalid && durationMinutes?.touched) {
+            <span class="field-error">Duration krävs</span>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="bufferBeforeMinutes">Paus före (min)</label>
+          <input
+            id="bufferBeforeMinutes"
+            class="input"
+            type="number"
+            formControlName="bufferBeforeMinutes"
+            min="0"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label" for="bufferAfterMinutes">Paus efter (min)</label>
+          <input
+            id="bufferAfterMinutes"
+            class="input"
+            type="number"
+            formControlName="bufferAfterMinutes"
+            min="0"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label" for="maxAdvanceDays">Max i förväg (dagar)</label>
+          <input
+            id="maxAdvanceDays"
+            class="input"
+            type="number"
+            formControlName="maxAdvanceDays"
+            min="0"
+          />
+        </div>
+        <div class="field">
+          <label class="field-label" for="followUpIntervalDays">Uppföljningsintervall (dagar)</label>
+          <input
+            id="followUpIntervalDays"
+            class="input"
+            type="number"
+            formControlName="followUpIntervalDays"
+            min="0"
+            placeholder="Tomt = inget krav"
+          />
+        </div>
 
-          <!-- Pris -->
-          <div class="section">
-            <h2 class="section-title">Pris</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="priceExcludingVat">Pris exkl. moms <span class="required">*</span></label>
-                <input
-                  id="priceExcludingVat"
-                  type="number"
-                  formControlName="priceExcludingVat"
-                  min="0"
-                  step="0.01"
-                />
-                @if (priceExcludingVat?.invalid && priceExcludingVat?.touched) {
-                  <span class="error">Pris krävs</span>
-                }
-              </div>
-              <div class="form-group">
-                <label for="vatRate">Momsats (%) <span class="required">*</span></label>
-                <input
-                  id="vatRate"
-                  type="number"
-                  formControlName="vatRate"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                />
-                @if (vatRate?.invalid && vatRate?.touched) {
-                  <span class="error">Momsats krävs</span>
-                }
-              </div>
-              <div class="form-group">
-                <label for="colour">Färg</label>
-                <div class="colour-wrapper">
-                  <input
-                    id="colour"
-                    type="color"
-                    formControlName="colour"
-                    class="colour-input"
-                  />
-                  <span class="colour-value">{{ colourValue() || 'Ingen färg' }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Inställningar -->
-          <div class="section">
-            <h2 class="section-title">Inställningar</h2>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="bookableOnline" class="checkbox-label">
-                  <input
-                    id="bookableOnline"
-                    type="checkbox"
-                    formControlName="bookableOnline"
-                  />
-                  Bokningsbar online
-                </label>
-              </div>
-              <div class="form-group">
-                <label for="requiresApproval" class="checkbox-label">
-                  <input
-                    id="requiresApproval"
-                    type="checkbox"
-                    formControlName="requiresApproval"
-                  />
-                  Kräver godkännande
-                </label>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group full-width">
-                <label for="allowedLocationTypes">Tillåtna platstyper</label>
-                <textarea
-                  id="allowedLocationTypes"
-                  formControlName="allowedLocationTypes"
-                  rows="2"
-                  placeholder="T.ex. Praktikrum,Kliniken,FörHem (kommaseparerat)"
-                ></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- Journalmall -->
-          <div class="section">
-            <h2 class="section-title">Journalmall</h2>
-            <div class="form-row">
-              <div class="form-group full-width">
-                <p class="section-hint">Konfigurera en mall för hur journaler ska se ut vid denna behandlingstyp.</p>
-                <button
-                  type="button"
-                  (click)="openTemplateBuilder()"
-                  class="btn-secondary"
-                >
-                  {{ hasTemplate() ? 'Konfigurera mall' : 'Skapa mall' }}
-                </button>
-                @if (hasTemplate()) {
-                  <div class="template-info">
-                    <span>Mall konfigurerad ({{ templateSectionCount() }} sektioner)</span>
-                  </div>
-                }
-              </div>
-            </div>
+        <h2 class="card-title">Pris</h2>
+        <div class="field">
+          <label class="field-label required" for="priceExcludingVat">Pris exkl. moms</label>
+          <input
+            id="priceExcludingVat"
+            class="input"
+            type="number"
+            formControlName="priceExcludingVat"
+            min="0"
+            step="0.01"
+          />
+          @if (priceExcludingVat?.invalid && priceExcludingVat?.touched) {
+            <span class="field-error">Pris krävs</span>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label required" for="vatRate">Momsats (%)</label>
+          <input
+            id="vatRate"
+            class="input"
+            type="number"
+            formControlName="vatRate"
+            min="0"
+            max="100"
+            step="0.01"
+          />
+          @if (vatRate?.invalid && vatRate?.touched) {
+            <span class="field-error">Momsats krävs</span>
+          }
+        </div>
+        <div class="field">
+          <label class="field-label" for="colour">Färg</label>
+          <div class="colour-wrapper">
+            <input
+              id="colour"
+              type="color"
+              formControlName="colour"
+              class="colour-input"
+            />
+            <span class="colour-value">{{ colourValue() || 'Ingen färg' }}</span>
           </div>
         </div>
 
-        <div class="form-actions">
-          <a routerLink="/treatment-types" class="btn-cancel">Avbryt</a>
+        <h2 class="card-title">Inställningar</h2>
+        <label class="check">
+          <input
+            id="bookableOnline"
+            type="checkbox"
+            formControlName="bookableOnline"
+          />
+          Bokningsbar online
+        </label>
+        <label class="check">
+          <input
+            id="requiresApproval"
+            type="checkbox"
+            formControlName="requiresApproval"
+          />
+          Kräver godkännande
+        </label>
+
+        <h2 class="card-title">Journalmall</h2>
+        <div class="field">
+          <p class="field-hint">Konfigurera en mall för hur journaler ska se ut vid denna behandlingstyp.</p>
+          <button
+            type="button"
+            (click)="openTemplateBuilder()"
+            class="btn-secondary"
+          >
+            {{ hasTemplate() ? 'Konfigurera mall' : 'Skapa mall' }}
+          </button>
+          @if (hasTemplate()) {
+            <p class="template-info">Mall konfigurerad ({{ templateSectionCount() }} sektioner)</p>
+          }
+        </div>
+
+        <div class="actions-bar">
+          <button type="button" class="btn-ghost" (click)="onCancel()">Avbryt</button>
           <button
             type="submit"
             [disabled]="treatmentForm.invalid || loading()"
@@ -280,20 +240,13 @@ interface TreatmentType {
     }
   `,
   styles: [`
-    .form-container, .section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1rem; }
-    .section-title { margin: 0 0 1rem; color: var(--color-primary-text); }
-    .form-row { display: grid; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
-    .form-group.full-width { grid-column: 1 / -1; }
-    .form-group input, .form-group textarea, .form-group select {
-      width: 100%; min-height: var(--tap-min); padding: 0.55rem 0.75rem;
-      border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface);
-    }
-    .error { color: var(--color-danger); font-size: 0.8125rem; }
-    .checkbox-label { display: flex; align-items: center; gap: 0.5rem; }
+    .check { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+    .colour-wrapper { display: flex; align-items: center; gap: 0.75rem; }
+    .colour-input { width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); cursor: pointer; }
+    .colour-value { color: var(--color-text-muted); font-size: var(--text-sm); }
+    .template-info { margin: 0.5rem 0 0; color: var(--color-text-muted); font-size: var(--text-sm); }
     .modal-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(36,48,24,.45); display: grid; place-items: center; padding: 1rem; }
-    .modal, .modal-content { width: min(900px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: var(--radius-lg); }
-    @media (min-width: 768px) { .form-row { grid-template-columns: 1fr 1fr; } .form-row.three-col { grid-template-columns: 1fr 1fr 1fr; } }
+    .modal-content { width: min(900px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: var(--radius-lg); }
   `]
 })
 export class TreatmentTypeFormComponent implements OnInit {
@@ -308,6 +261,7 @@ export class TreatmentTypeFormComponent implements OnInit {
   loading = signal(false);
   isEdit = false;
   treatmentId = signal<string>('');
+  private preservedAllowedLocationTypes: string | null = null;
 
   showTemplateBuilder = signal(false);
   templateJson = signal('');
@@ -349,7 +303,6 @@ export class TreatmentTypeFormComponent implements OnInit {
       requiresApproval: [false],
       minNoticeHours: [0, [Validators.min(0)]],
       maxAdvanceDays: [30, [Validators.min(0)]],
-      allowedLocationTypes: [''],
       followUpIntervalDays: [null, []],
       journalTemplateJson: ['']
     });
@@ -363,6 +316,7 @@ export class TreatmentTypeFormComponent implements OnInit {
     this.loading.set(true);
     this.http.get<TreatmentType>(`${environment.apiUrl}/api/app/treatment-types/${id}`).subscribe({
       next: (type) => {
+        this.preservedAllowedLocationTypes = type.allowedLocationTypes ?? null;
         this.treatmentForm.patchValue({
           name: type.name,
           slug: type.slug || '',
@@ -378,7 +332,6 @@ export class TreatmentTypeFormComponent implements OnInit {
           requiresApproval: type.requiresApproval,
           minNoticeHours: type.minNoticeHours,
           maxAdvanceDays: type.maxAdvanceDays,
-          allowedLocationTypes: type.allowedLocationTypes || '',
           followUpIntervalDays: type.followUpIntervalDays,
           journalTemplateJson: type.journalTemplateJson || ''
         });
@@ -436,7 +389,7 @@ export class TreatmentTypeFormComponent implements OnInit {
       requiresApproval: formValue.requiresApproval,
       minNoticeHours: formValue.minNoticeHours,
       maxAdvanceDays: formValue.maxAdvanceDays,
-      allowedLocationTypes: formValue.allowedLocationTypes,
+      allowedLocationTypes: this.preservedAllowedLocationTypes,
       followUpIntervalDays: formValue.followUpIntervalDays === '' ? null : formValue.followUpIntervalDays,
       journalTemplateJson: this.templateJson() || null
     };
@@ -457,6 +410,10 @@ export class TreatmentTypeFormComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  onCancel(): void {
+    this.router.navigate(['/treatment-types']);
   }
 
   openTemplateBuilder(): void {
