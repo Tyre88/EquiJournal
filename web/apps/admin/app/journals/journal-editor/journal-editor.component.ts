@@ -225,26 +225,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             <h2>Övriga fält</h2>
 
             <div class="form-group full">
-              <label for="diagnos">Diagnos</label>
-              <textarea
-                id="diagnos"
-                formControlName="diagnos"
-                rows="3"
-                placeholder="Diagnos..."
-              ></textarea>
-            </div>
-
-            <div class="form-group full">
-              <label for="differentialdiagnoser">Differentialdiagnoser</label>
-              <textarea
-                id="differentialdiagnoser"
-                formControlName="differentialdiagnoser"
-                rows="3"
-                placeholder="Differentialdiagnoser..."
-              ></textarea>
-            </div>
-
-            <div class="form-group full">
               <label for="prognosOchPlan">Prognos och plan / hemgångsråd</label>
               <textarea
                 id="prognosOchPlan"

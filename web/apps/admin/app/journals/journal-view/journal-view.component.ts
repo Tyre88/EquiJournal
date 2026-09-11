@@ -115,14 +115,18 @@ interface JournalData {
             <div class="label">Undersökning / behandling och motivering</div>
             <div class="value">{{ j.atgarder || '—' }}</div>
           </div>
-          <div class="field">
-            <div class="label">Diagnos</div>
-            <div class="value">{{ j.diagnos || '—' }}</div>
-          </div>
-          <div class="field">
-            <div class="label">Differentialdiagnoser</div>
-            <div class="value">{{ j.differentialdiagnoser || '—' }}</div>
-          </div>
+          @if (j.diagnos) {
+            <div class="field">
+              <div class="label">Diagnos</div>
+              <div class="value">{{ j.diagnos }}</div>
+            </div>
+          }
+          @if (j.differentialdiagnoser) {
+            <div class="field">
+              <div class="label">Differentialdiagnoser</div>
+              <div class="value">{{ j.differentialdiagnoser }}</div>
+            </div>
+          }
           <div class="field">
             <div class="label">Prognos och plan / hemgångsråd</div>
             <div class="value">{{ j.prognosOchPlan || '—' }}</div>

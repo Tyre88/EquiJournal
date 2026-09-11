@@ -126,15 +126,6 @@ interface TreatmentType {
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label for="minNoticeHours">Minsta anmälan (timmar)</label>
-                <input
-                  id="minNoticeHours"
-                  type="number"
-                  formControlName="minNoticeHours"
-                  min="0"
-                />
-              </div>
-              <div class="form-group">
                 <label for="maxAdvanceDays">Max i förväg (dagar)</label>
                 <input
                   id="maxAdvanceDays"
