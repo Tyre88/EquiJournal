@@ -30,6 +30,7 @@ using Equine.Infrastructure.Practice;
 using Equine.Infrastructure.Sms;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Equine.Domain.JournalTemplates;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure.Scheduling;
 using Equine.Infrastructure;
@@ -398,6 +399,7 @@ async Task EnsureDatabaseExists(WebApplication app)
     await SeedWidgetSettings(context);
     await SeedNotificationFoundation(context);
     await BackfillTreatmentSlugs(context);
+    await BackfillAnatomyFindingOptions(context);
 }
 
 async Task SeedNotificationFoundation(EquineDbContext context)
@@ -431,6 +433,38 @@ async Task BackfillTreatmentSlugs(EquineDbContext context)
         if (string.IsNullOrWhiteSpace(type.Slug))
             type.Update(slug: type.Name);
     }
+    if (context.ChangeTracker.HasChanges())
+        await context.SaveChangesAsync();
+}
+
+async Task BackfillAnatomyFindingOptions(EquineDbContext context)
+{
+    var types = await context.TreatmentTypes
+        .Where(t => t.JournalTemplateJson != null)
+        .ToListAsync();
+    foreach (var type in types)
+    {
+        var migrated = AnatomyFindingMigrator.TryMigrateTemplateJson(type.JournalTemplateJson);
+        if (migrated is null)
+            continue;
+        type.Update(
+            publicDescription: type.PublicDescription,
+            colour: type.Colour,
+            allowedLocationTypes: type.AllowedLocationTypes,
+            followUpIntervalDays: type.FollowUpIntervalDays,
+            journalTemplateJson: migrated);
+    }
+
+    var journals = await context.JournalEntries
+        .Where(j => j.TemplateDataJson.Contains("Svullnad"))
+        .ToListAsync();
+    foreach (var journal in journals)
+    {
+        var migrated = AnatomyFindingMigrator.TryMigrateJournalDataJson(journal.TemplateDataJson);
+        if (migrated is not null)
+            journal.TryApplyTemplateDataMigration(migrated);
+    }
+
     if (context.ChangeTracker.HasChanges())
         await context.SaveChangesAsync();
 }

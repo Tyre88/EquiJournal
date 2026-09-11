@@ -55,7 +55,10 @@ export interface AnatomyPreset {
 }
 
 export const DEFAULT_ANATOMY_PRESET = 'horse-muscles-standard';
-export const DEFAULT_FINDING_OPTIONS = ['Ua', 'Öm', 'Spänd', 'Svullnad'];
+export const DEFAULT_FINDING_OPTIONS = [
+  'Ua', 'Öm', 'Spänd', 'Svullen',
+  'Galla', 'Triggerpunkt', 'Sår', 'Knöl', 'Muskelknuta'
+];
 
 export function parseAnatomyMapValue(raw: unknown, fallbackPreset = DEFAULT_ANATOMY_PRESET): AnatomyMapValue {
   if (!raw) return { preset: fallbackPreset, annotations: [], strokes: [] };

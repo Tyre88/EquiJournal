@@ -13,9 +13,10 @@ import { HttpClient } from '@angular/common/http';
 import { ConfirmService, ToastService } from '@equijournal/ui';
 import { environment } from '../../../environments/environment';
 import { AnatomyMapComponent } from '../../journals/anatomy-map/anatomy-map.component';
+import { DEFAULT_FINDING_OPTIONS } from '../../journals/anatomy-map/anatomy-map.types';
 
 const API_URL = environment.apiUrl;
-const DEFAULT_FINDINGS = 'Ua, Öm, Spänd, Svullnad';
+const DEFAULT_FINDINGS = DEFAULT_FINDING_OPTIONS.join(', ');
 
 function generateId(): string {
   return `sec_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -193,7 +194,7 @@ interface TemplateData {
                           id="findings-{{ section.id }}"
                           type="text"
                           [formControl]="getControl(section.id, 'findingOptions')"
-                          placeholder="Ua, Öm, Spänd, Svullnad"
+                          placeholder="Ua, Öm, Spänd, Svullen, Galla, Triggerpunkt, Sår, Knöl, Muskelknuta"
                         />
                         @if (getControl(section.id, 'findingOptions').invalid && getControl(section.id, 'findingOptions').touched) {
                           <span class="error">Minst ett fyndalternativ krävs</span>
@@ -602,7 +603,7 @@ export class TemplateBuilderComponent implements OnInit {
             label: s.label,
             type: s.type,
             preset: s.preset || 'horse-muscles-standard',
-            findingOptions: findings.length ? findings : ['Ua', 'Öm', 'Spänd', 'Svullnad'],
+            findingOptions: findings.length ? findings : DEFAULT_FINDING_OPTIONS,
             customImageKey: s.customImageKey || null
           };
         }

@@ -116,6 +116,16 @@ public class JournalEntry
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public bool TryApplyTemplateDataMigration(string migratedJson)
+    {
+        if (migratedJson == TemplateDataJson) return false;
+        TemplateDataJson = migratedJson;
+        UpdatedAt = DateTimeOffset.UtcNow;
+        if (Status == JournalStatus.Signed)
+            ContentHash = ComputeContentHash();
+        return true;
+    }
+
     public bool ValidateForSigning()
     {
         if (string.IsNullOrWhiteSpace(Anamnes)) return false;
