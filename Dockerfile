@@ -2,13 +2,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY Equine.slnx .
 COPY src/Equine.Domain/Equine.Domain.csproj src/Equine.Domain/
 COPY src/Equine.Infrastructure/Equine.Infrastructure.csproj src/Equine.Infrastructure/
 COPY src/Equine.Api/Equine.Api.csproj src/Equine.Api/
 COPY src/Equine.Jobs/Equine.Jobs.csproj src/Equine.Jobs/
 
-RUN dotnet restore
+RUN dotnet restore src/Equine.Api/Equine.Api.csproj
 
 COPY src/Equine.Domain/ src/Equine.Domain/
 COPY src/Equine.Infrastructure/ src/Equine.Infrastructure/
