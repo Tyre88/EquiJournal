@@ -354,6 +354,8 @@ if (!app.Environment.IsEnvironment("Testing"))
     RecurringJob.AddOrUpdate<NotificationJobs>("deliverability", j => j.CheckDeliverability(), "0 8 * * *");
 }
 
+app.MapGet("/", () => Results.Redirect("/admin/"));
+app.MapFallbackToFile("/admin/{**path}", "/admin/index.html");
 app.MapFallbackToFile("/widget/{**path}", "/widget/index.html");
 app.MapFallbackToFile("/portal/{**path}", "/portal/index.html");
 

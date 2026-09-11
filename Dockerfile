@@ -27,9 +27,9 @@ RUN npm ci
 COPY web/apps/ ./apps/
 COPY web/libs/ ./libs/
 
-RUN npm run build:admin -- --output-path=dist/admin/browser
-RUN npm run build:widget -- --output-path=dist/widget/browser
-RUN npx ng build portal --output-path=dist/portal/browser
+RUN npm run build:admin
+RUN npm run build:widget
+RUN npx ng build portal
 
 FROM node:22-alpine AS loader-build
 WORKDIR /loader
