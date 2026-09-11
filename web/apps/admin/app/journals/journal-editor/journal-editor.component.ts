@@ -15,6 +15,10 @@ import {
   DEFAULT_FINDING_OPTIONS,
   parseAnatomyMapValue
 } from '../anatomy-map/anatomy-map.types';
+import {
+  STANDARD_ANATOMY_PRESETS,
+  STANDARD_ANATOMY_SECTIONS
+} from '../journal-standard-sections';
 import { DraftStoreService } from '../../draft-store.service';
 import { AttachmentQueueService } from '../../attachment-queue.service';
 import { SyncStatusService } from '../../sync-status.service';
@@ -234,6 +238,26 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
                 placeholder="Prognos, plan och hemgångsråd..."
               ></textarea>
             </div>
+          </div>
+
+          <!-- Standard anatomy maps (always present) -->
+          <div class="card editor-section">
+            <h2>Anatomikartor</h2>
+            @for (field of standardAnatomyFields(); track field.key) {
+              <div class="form-group full">
+                <label [for]="'field-' + field.key">{{ field.label }}</label>
+                <div class="anatomy-field">
+                  <app-anatomy-map
+                    [presetId]="field.preset || 'horse-muscles-standard'"
+                    [findingOptions]="field.findingOptions ?? []"
+                    [annotations]="anatomyAnnotations(field.key)"
+                    [strokes]="anatomyStrokes(field.key)"
+                    (annotationChange)="onAnatomyChange(field, $event)"
+                    (strokesChange)="onAnatomyStrokesChange(field, $event)"
+                  />
+                </div>
+              </div>
+            }
           </div>
 
           <!-- Template fields -->
@@ -457,6 +481,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
 
   treatmentTypes = signal<TreatmentTypeItem[]>([]);
   templateFields = signal<{ key: string; label: string; fields: TemplateField[] }[]>([]);
+  standardAnatomyFields = signal<TemplateField[]>([]);
 
   pendingFiles = signal<File[]>([]);
   attachments = signal<AttachmentItem[]>([]);
@@ -510,6 +535,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
 
     this.loadTreatmentTypes();
     this.loadHorses();
+    this.ensureStandardAnatomyFields();
 
     if (!this.isNew()) {
       const id = this.route.snapshot.paramMap.get('id');
@@ -601,6 +627,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
         const templateData = typeof j.templateDataJson === 'string'
           ? JSON.parse(j.templateDataJson || '{}')
           : (j.templateData || {});
+        this.ensureStandardAnatomyFields(templateData);
         if (j.treatmentTypeId) {
           this.loadTemplateForTreatment(j.treatmentTypeId, templateData);
         } else if (templateData && Object.keys(templateData).length) {
@@ -631,8 +658,11 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
 
       const sectionType = String(section.type ?? '').toLowerCase();
       const isAnatomy = sectionType === 'anatomy-map' || sectionType === 'anatomymap'
-        || section.preset === 'horse-muscles-standard'
+        || STANDARD_ANATOMY_PRESETS.has(section.preset)
         || Array.isArray(section.findingOptions);
+      if (isAnatomy && STANDARD_ANATOMY_PRESETS.has(section.preset || DEFAULT_ANATOMY_PRESET)) {
+        continue;
+      }
       if (sectionType === 'bodymap' && !isAnatomy) {
         tplFields.push({
           key: section.key,
@@ -689,6 +719,25 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     }
 
     this.templateFields.set(fields);
+  }
+
+  private ensureStandardAnatomyFields(templateData: Record<string, unknown> = {}): void {
+    const fields: TemplateField[] = STANDARD_ANATOMY_SECTIONS.map(s => ({
+      key: s.key,
+      label: s.label,
+      type: 'anatomy-map',
+      preset: s.preset,
+      findingOptions: DEFAULT_FINDING_OPTIONS
+    }));
+    this.standardAnatomyFields.set(fields);
+    for (const field of fields) {
+      const value = parseAnatomyMapValue(templateData[field.key], field.preset);
+      if (!this.form.contains('tpl_' + field.key)) {
+        this.form.addControl('tpl_' + field.key, this.fb.control(value));
+      } else if (templateData[field.key] != null) {
+        this.form.get('tpl_' + field.key)?.setValue(value);
+      }
+    }
   }
 
   private patchTemplateFields(templateData: Record<string, any>): void {
@@ -1140,6 +1189,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
         if (!raw) return;
         try {
           const template = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          this.ensureStandardAnatomyFields(existing ?? {});
           this.buildTemplateFields({ treatmentType: { journalTemplate: template }, templateData: existing ?? {} });
           if (existing) this.patchTemplateFields(existing);
         } catch { /* ignore */ }

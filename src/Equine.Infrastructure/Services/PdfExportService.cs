@@ -18,6 +18,11 @@ public class PdfExportService : IPdfExportService
 {
     private readonly PracticeSettingsService _practice;
     private static readonly CultureInfo Sv = CultureInfo.GetCultureInfo("sv-SE");
+    private static readonly Dictionary<string, string> AnatomyFieldLabels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["undersokningsfynd"] = "Undersökningsfynd",
+        ["behandling_karta"] = "Behandling"
+    };
 
     public PdfExportService(PracticeSettingsService practice)
     {
@@ -279,7 +284,7 @@ public class PdfExportService : IPdfExportService
             if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("annotations", out var anns) || anns.ValueKind != JsonValueKind.Array)
                 return false;
 
-            lines.Add($"{fieldName}:");
+            lines.Add($"{AnatomyFieldLabel(fieldName)}:");
             if (anns.GetArrayLength() == 0)
             {
                 lines.Add("Inga markerade områden");
@@ -323,4 +328,7 @@ public class PdfExportService : IPdfExportService
             owned?.Dispose();
         }
     }
+
+    private static string AnatomyFieldLabel(string key) =>
+        AnatomyFieldLabels.TryGetValue(key, out var label) ? label : key;
 }

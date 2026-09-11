@@ -9,6 +9,10 @@ import { EntityHistoryComponent } from '../../audit/entity-history.component';
 import { BodymapComponent, BodyMapMarker } from '../bodymap/bodymap.component';
 import { AnatomyMapComponent } from '../anatomy-map/anatomy-map.component';
 import { AnatomyMapValue, isAnatomyMapValue, parseAnatomyMapValue } from '../anatomy-map/anatomy-map.types';
+import {
+  STANDARD_ANATOMY_SECTIONS,
+  STANDARD_SECTION_LABELS
+} from '../journal-standard-sections';
 import { environment } from '../../../environments/environment';
 const API_URL = environment.apiUrl;
 
@@ -131,6 +135,23 @@ interface JournalData {
             <div class="label">Prognos och plan / hemgångsråd</div>
             <div class="value">{{ j.prognosOchPlan || '—' }}</div>
           </div>
+        </section>
+
+        <section class="card">
+          <h3>Anatomikartor</h3>
+          @for (section of standardAnatomySections; track section.key) {
+            <div class="field">
+              <div class="label">{{ section.label }}</div>
+              @if (standardAnatomyValue(section.key); as anatomy) {
+                <app-anatomy-map
+                  [presetId]="section.preset"
+                  [annotations]="anatomy.annotations"
+                  [strokes]="anatomy.strokes"
+                  [readonly]="true"
+                />
+              }
+            </div>
+          }
         </section>
 
         @if (templateEntries().length > 0) {
@@ -263,15 +284,26 @@ export class JournalViewComponent implements OnInit {
     reason: ['', [Validators.required]]
   });
 
+  readonly standardAnatomySections = STANDARD_ANATOMY_SECTIONS;
+
   templateEntries = computed(() => {
     const j = this.journal();
     if (!j?.templateData) return [];
-    return Object.entries(j.templateData).map(([key, value]) => ({
-      key,
-      label: key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
-      value
-    }));
+    return Object.entries(j.templateData)
+      .filter(([key]) => !STANDARD_SECTION_LABELS[key])
+      .map(([key, value]) => ({
+        key,
+        label: STANDARD_SECTION_LABELS[key]
+          ?? key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
+        value
+      }));
   });
+
+  standardAnatomyValue(key: string): AnatomyMapValue {
+    const raw = this.journal()?.templateData?.[key];
+    const section = STANDARD_ANATOMY_SECTIONS.find(s => s.key === key);
+    return parseAnatomyMapValue(raw, section?.preset);
+  }
 
   get amendText() { return this.amendmentForm.get('text'); }
   get amendReason() { return this.amendmentForm.get('reason'); }

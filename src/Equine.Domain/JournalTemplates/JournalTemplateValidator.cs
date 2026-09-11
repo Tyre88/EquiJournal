@@ -11,7 +11,8 @@ public static class JournalTemplateValidator
 
     public static readonly HashSet<string> AllowedAnatomyPresets = new(StringComparer.OrdinalIgnoreCase)
     {
-        "horse-muscles-standard"
+        "horse-muscles-standard",
+        "horse-skeleton-standard"
     };
 
     public static bool TryValidate(string? json, out string? error)

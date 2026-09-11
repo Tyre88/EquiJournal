@@ -94,6 +94,16 @@ public class JournalEntryTests
     }
 
     [Fact]
+    public void Template_validation_accepts_skeleton_anatomy_preset()
+    {
+        var json = """
+            {"version":1,"sections":[{"key":"behandling_karta","label":"Behandling","type":"anatomy-map","preset":"horse-skeleton-standard","findingOptions":["Ua","Öm"]}]}
+            """;
+        JournalTemplateValidator.TryValidate(json, out var error).ShouldBeTrue();
+        error.ShouldBeNull();
+    }
+
+    [Fact]
     public void Template_validation_rejects_anatomy_map_with_empty_findings()
     {
         var json = """

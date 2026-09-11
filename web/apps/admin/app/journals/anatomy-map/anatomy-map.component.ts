@@ -6,7 +6,7 @@ import {
   AnatomyStroke,
   DEFAULT_FINDING_OPTIONS
 } from './anatomy-map.types';
-import { getAnatomyPreset } from './presets/horse-muscles-standard';
+import { getAnatomyPreset } from './presets';
 
 type MapMode = 'mark' | 'draw';
 

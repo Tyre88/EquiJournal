@@ -179,6 +179,7 @@ interface TemplateData {
                     }
 
                     @if (section.type === 'anatomy-map') {
+                      <p class="hint">Muskel- och skelettkartor ingår automatiskt i alla journaler. Lägg bara till extra anatomikartor här om du behöver ytterligare kartor med egna fyndalternativ.</p>
                       <div class="form-group">
                         <label for="preset-{{ section.id }}">Förinställd karta</label>
                         <select
@@ -186,6 +187,7 @@ interface TemplateData {
                           [formControl]="getControl(section.id, 'preset')"
                         >
                           <option value="horse-muscles-standard">Häst — muskler (standard)</option>
+                          <option value="horse-skeleton-standard">Häst — skelett (standard)</option>
                         </select>
                       </div>
                       <div class="form-group">
@@ -274,7 +276,7 @@ interface TemplateData {
                       <div class="bodymap-placeholder">Kroppskarta (interaktiv)</div>
                     }
                     @case ('anatomy-map') {
-                      <app-anatomy-map [readonly]="true" />
+                      <app-anatomy-map [readonly]="true" [presetId]="section.preset || 'horse-muscles-standard'" />
                     }
                   }
                 </div>
