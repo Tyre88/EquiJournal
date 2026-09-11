@@ -12,7 +12,6 @@ widget-loader/node_modules/
 web/dist/
 web/out-tsc/
 web/.angular/
-web/package-lock.json
 
 # === IDE ===
 .vs/

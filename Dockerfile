@@ -22,15 +22,11 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 FROM node:22-alpine AS web-build
 WORKDIR /app
 
-COPY web/package.json web/package-lock.json* web/angular.json ./
-COPY web/apps/ ./apps/
-COPY web/libs/ ./libs/
-
+COPY web/package.json web/package-lock.json web/angular.json web/tsconfig.json ./
 RUN npm ci
 
-# We need the API to generate the client, but we can't run it in build stage.
-# Copy placeholder API client instead
-COPY web/libs/api-client/ ./libs/api-client/
+COPY web/apps/ ./apps/
+COPY web/libs/ ./libs/
 
 RUN npm run build:admin -- --output-path=dist/admin/browser
 RUN npm run build:widget -- --output-path=dist/widget/browser
@@ -38,8 +34,8 @@ RUN npx ng build portal --output-path=dist/portal/browser
 
 FROM node:22-alpine AS loader-build
 WORKDIR /loader
-COPY widget-loader/package.json ./
-RUN npm install
+COPY widget-loader/package.json widget-loader/package-lock.json ./
+RUN npm ci
 COPY widget-loader/ ./
 RUN npm run build
 
