@@ -1,6 +1,7 @@
 using Equine.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Equine.Infrastructure.Configurations;
 
@@ -18,7 +19,13 @@ public class PracticeSettingsConfiguration : IEntityTypeConfiguration<PracticeSe
         builder.Property(s => s.AddressCity).HasMaxLength(100).HasConversion(v => v ?? "", v => v ?? "");
         builder.Property(s => s.Phone).HasMaxLength(50);
         builder.Property(s => s.Email).HasMaxLength(255);
-        builder.Property(s => s.VehicleRegistrationNumber).HasMaxLength(16).HasConversion(v => v ?? "", v => v ?? "");
+        builder.Property(s => s.VehicleRegistrationNumber)
+            .HasMaxLength(16)
+            .HasDefaultValue("")
+            .HasConversion(new ValueConverter<string, string?>(
+                v => string.IsNullOrEmpty(v) ? "" : v,
+                v => v ?? "",
+                convertsNulls: true));
         builder.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
     }
 }

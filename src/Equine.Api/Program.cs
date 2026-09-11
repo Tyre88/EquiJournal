@@ -707,7 +707,7 @@ async Task EnableExtensions(EquineDbContext context)
             ""Longitude"" numeric NULL,
             ""Phone"" varchar(50) NULL,
             ""Email"" varchar(255) NULL,
-            ""VehicleRegistrationNumber"" varchar(16) NULL,
+            ""VehicleRegistrationNumber"" varchar(16) NOT NULL DEFAULT '',
             ""UpdatedAt"" timestamptz NOT NULL DEFAULT now()
         );
         ALTER TABLE ""practice_settings"" ADD COLUMN IF NOT EXISTS ""AddressStreet"" varchar(200) NULL;
@@ -717,6 +717,8 @@ async Task EnableExtensions(EquineDbContext context)
         UPDATE ""practice_settings"" SET ""AddressStreet"" = COALESCE(""AddressStreet"", '');
         UPDATE ""practice_settings"" SET ""AddressPostcode"" = COALESCE(""AddressPostcode"", '');
         UPDATE ""practice_settings"" SET ""AddressCity"" = COALESCE(""AddressCity"", '');
+        UPDATE ""practice_settings"" SET ""VehicleRegistrationNumber"" = COALESCE(""VehicleRegistrationNumber"", '');
+        ALTER TABLE ""practice_settings"" ALTER COLUMN ""VehicleRegistrationNumber"" SET DEFAULT '';
         CREATE TABLE IF NOT EXISTS ""notification_settings"" (
             ""Id"" uuid PRIMARY KEY,
             ""EnabledJson"" jsonb NOT NULL,
