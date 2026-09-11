@@ -50,6 +50,12 @@
           "configurations": {
             "production": {
               "baseHref": "/admin/",
+              "fileReplacements": [
+                {
+                  "replace": "apps/admin/environments/environment.ts",
+                  "with": "apps/admin/environments/environment.prod.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
