@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2020",
+    "lib": ["es2022", "dom"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@equijournal/ui": ["../../libs/ui/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts", "../../libs/ui/src/**/*.ts"],
+  "exclude": ["**/*.spec.ts"]
+}

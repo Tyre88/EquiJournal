@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../out-tsc/portal",
+    "target": "es2022",
+    "module": "es2020",
+    "lib": ["es2022", "dom"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true
+  },
+  "include": ["**/*.ts"]
+}

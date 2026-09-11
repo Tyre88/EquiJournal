@@ -1,0 +1,38 @@
+# === .NET ===
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+
+# === Angular ===
+web/node_modules/
+widget-loader/node_modules/
+web/dist/
+web/out-tsc/
+web/.angular/
+web/package-lock.json
+
+# === IDE ===
+.vs/
+.vscode/
+*.swp
+*~
+.DS_Store
+*.suo
+
+# === Secrets ===
+*.key
+*.p12
+*.pem
+appsettings.Production.json
+appsettings.Staging.json
+
+# === Docker ===
+*.pid
+
+# === Misc ===
+*.bak
+*.tmp
+artifacts/

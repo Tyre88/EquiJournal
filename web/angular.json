@@ -1,0 +1,292 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectGeneration": "component",
+  "cli": {
+    "packageManager": "npm",
+    "analytics": false
+  },
+  "projects": {
+    "admin": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "css",
+          "standalone": true
+        },
+        "@schematics/angular:directive": {
+          "standalone": true
+        },
+        "@schematics/angular:pipe": {
+          "standalone": true
+        }
+      },
+      "root": "apps/admin",
+      "sourceRoot": "apps/admin",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "dist/admin"
+            },
+            "index": "apps/admin/index.html",
+            "browser": "apps/admin/main.ts",
+            "polyfills": ["zone.js"],
+            "tsConfig": "apps/admin/tsconfig.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/admin/public"
+              }
+            ],
+            "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
+              "apps/admin/styles.css"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "prebundle": false,
+            "port": 4200,
+            "host": "localhost"
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "admin:build:production"
+            },
+            "development": {
+              "buildTarget": "admin:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["apps/admin/**/*.ts", "apps/admin/**/*.html"]
+          }
+        }
+      }
+    },
+    "widget": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "css",
+          "standalone": true
+        },
+        "@schematics/angular:directive": {
+          "standalone": true
+        },
+        "@schematics/angular:pipe": {
+          "standalone": true
+        }
+      },
+      "root": "apps/widget",
+      "sourceRoot": "apps/widget",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "dist/widget"
+            },
+            "index": "apps/widget/index.html",
+            "browser": "apps/widget/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/widget/tsconfig.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/widget/public"
+              }
+            ],
+            "styles": ["apps/widget/styles.css"],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "baseHref": "/widget/",
+              "fileReplacements": [
+                {
+                  "replace": "apps/widget/environments/environment.ts",
+                  "with": "apps/widget/environments/environment.prod.ts"
+                }
+              ],
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "280kB",
+                  "maximumError": "350kB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4201
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "widget:build:production"
+            },
+            "development": {
+              "buildTarget": "widget:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["apps/widget/**/*.ts", "apps/widget/**/*.html"]
+          }
+        }
+      }
+    },
+    "portal": {
+      "projectType": "application",
+      "root": "apps/portal",
+      "sourceRoot": "apps/portal",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": { "base": "dist/portal" },
+            "index": "apps/portal/index.html",
+            "browser": "apps/portal/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/portal/tsconfig.json",
+            "styles": ["apps/portal/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "baseHref": "/portal/",
+              "fileReplacements": [
+                {
+                  "replace": "apps/portal/environments/environment.ts",
+                  "with": "apps/portal/environments/environment.prod.ts"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
+    },
+    "api-client": {
+      "projectType": "library",
+      "root": "libs/api-client",
+      "sourceRoot": "libs/api-client/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:package",
+          "options": {
+            "outputPath": {
+              "base": "dist/libs/api-client"
+            },
+            "distPath": "dist/libs/api-client",
+            "funding": false,
+            "publishPackage": false,
+            "tsConfig": "libs/api-client/tsconfig.lib.json",
+            "project": "libs/api-client/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "libs/api-client/tsconfig.lib.prod.json"
+            }
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["libs/api-client/**/*.ts", "libs/api-client/**/*.html"]
+          }
+        }
+      }
+    },
+    "ui": {
+      "projectType": "library",
+      "root": "libs/ui",
+      "sourceRoot": "libs/ui/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:package",
+          "options": {
+            "outputPath": {
+              "base": "dist/libs/ui"
+            },
+            "distPath": "dist/libs/ui",
+            "funding": false,
+            "publishPackage": false,
+            "tsConfig": "libs/ui/tsconfig.lib.json",
+            "project": "libs/ui/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "libs/ui/tsconfig.lib.prod.json"
+            }
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["libs/ui/**/*.ts", "libs/ui/**/*.html"]
+          }
+        }
+      }
+    }
+  }
+}

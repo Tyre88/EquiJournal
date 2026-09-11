@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="sv-SE">
+<head>
+  <meta charset="utf-8">
+  <title>EquiJournal - Administration</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('theme-preference') || 'system';
+        var dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
+</head>
+<body>
+  <app-root>Laddar HästJournal...</app-root>
+</body>
+</html>

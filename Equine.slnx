@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Equine.Api/Equine.Api.csproj" />
+    <Project Path="src/Equine.Domain/Equine.Domain.csproj" />
+    <Project Path="src/Equine.Infrastructure/Equine.Infrastructure.csproj" />
+    <Project Path="src/Equine.Jobs/Equine.Jobs.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Equine.Import/Equine.Import.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Equine.IntegrationTests/Equine.IntegrationTests.csproj" />
+    <Project Path="tests/Equine.UnitTests/Equine.UnitTests.csproj" />
+  </Folder>
+</Solution>
