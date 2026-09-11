@@ -1,0 +1,156 @@
+# Dokploy + Traefik deployment for equilog.ry.beebase.cloud
+#
+# Deploy in Dokploy → Services → Compose, point at this file, set env vars from
+# .env.dokploy.example, and ensure DNS A-record for equilog.ry.beebase.cloud
+# points at the Dokploy host.
+#
+# Alternative: configure the domain in Dokploy's Domains tab instead of the
+# Traefik labels below (then redeploy after any domain change).
+
+name: equilog
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-equijournal};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      Jwt__Issuer: ${JWT_ISSUER:-Equine.Api}
+      Jwt__Audience: ${JWT_AUDIENCE:-EquineClient}
+      Jwt__SecurityKey: ${JWT_SECURITY_KEY:?set JWT_SECURITY_KEY}
+      Admin__Email: ${ADMIN_EMAIL:-admin@equijournal.se}
+      Admin__Password: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      Admin__DisplayName: ${ADMIN_DISPLAY_NAME:-Admin}
+      Cors__AllowedOrigins__0: https://${DOMAIN:-equilog.ry.beebase.cloud}
+      Storage__ServiceUrl: http://minio:9000
+      Storage__AccessKey: ${MINIO_ROOT_USER:-minioadmin}
+      Storage__SecretKey: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      Storage__Bucket: ${STORAGE_BUCKET:-equine-attachments}
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+      Smtp__From: ${SMTP_FROM:-bokning@${DOMAIN:-equilog.ry.beebase.cloud}}
+      Smtp__FromName: ${SMTP_FROM_NAME:-HästJournal}
+      Practitioner__Name: ${PRACTITIONER_NAME:-Victor}
+      Practitioner__Clinic: ${PRACTITIONER_CLINIC:-HästJournal}
+      Practitioner__Address: ${PRACTITIONER_ADDRESS:-Skåne, Sverige}
+      Practitioner__Phone: ${PRACTITIONER_PHONE:-0700000000}
+      Practitioner__Email: ${PRACTITIONER_EMAIL:-admin@equijournal.se}
+      GoogleMaps__BrowserKey: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      Notifications__SendingDomain: ${NOTIFICATIONS_SENDING_DOMAIN:-}
+    volumes:
+      - api_logs:/app/logs
+      - api_dataprotection:/root/.aspnet/DataProtection-Keys
+    expose:
+      - "8080"
+    networks:
+      - dokploy-network
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.equilog.rule=Host(`${DOMAIN:-equilog.ry.beebase.cloud}`)"
+      - "traefik.http.routers.equilog.entrypoints=websecure"
+      - "traefik.http.routers.equilog.tls=true"
+      - "traefik.http.routers.equilog.tls.certresolver=letsencrypt"
+      - "traefik.http.services.equilog.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.equilog-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.equilog-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.equilog-http.rule=Host(`${DOMAIN:-equilog.ry.beebase.cloud}`)"
+      - "traefik.http.routers.equilog-http.entrypoints=web"
+      - "traefik.http.routers.equilog-http.middlewares=equilog-redirect"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-equijournal}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-equijournal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    volumes:
+      - mailpit_data:/data
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD} &&
+      mc mb -p local/${STORAGE_BUCKET:-equine-attachments} || true &&
+      exit 0
+      "
+    networks:
+      - internal
+
+networks:
+  dokploy-network:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  mailpit_data:
+  api_logs:
+  api_dataprotection:

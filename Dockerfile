@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY Equine.sln .
+COPY Equine.slnx .
 COPY src/Equine.Domain/Equine.Domain.csproj src/Equine.Domain/
 COPY src/Equine.Infrastructure/Equine.Infrastructure.csproj src/Equine.Infrastructure/
 COPY src/Equine.Api/Equine.Api.csproj src/Equine.Api/
@@ -46,6 +46,10 @@ RUN npm run build
 # Final image
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 COPY --from=web-build /app/dist/admin/browser ./wwwroot/admin
