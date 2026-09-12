@@ -24,7 +24,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
     [Fact]
     public async Task Concurrent_dispatch_sends_once()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var row = new ScheduledNotification(
             NotificationType.MagicLink,
@@ -84,9 +84,9 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
     public async Task Magic_link_unknown_and_known_email_look_the_same()
     {
         var client = _factory.CreateClient();
-        var unknown = await client.PostAsJsonAsync("/api/public/auth/magic-link", new { email = "missing@ex.se" });
+        var unknown = await client.PostAsJsonAsync("/api/public/default/auth/magic-link", new { email = "missing@ex.se" });
         unknown.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var known = await client.PostAsJsonAsync("/api/public/auth/magic-link", new { email = "victor@gradera.nu" });
+        var known = await client.PostAsJsonAsync("/api/public/default/auth/magic-link", new { email = "victor@gradera.nu" });
         known.StatusCode.ShouldBe(HttpStatusCode.OK);
         var a = await unknown.Content.ReadAsStringAsync();
         var b = await known.Content.ReadAsStringAsync();
@@ -132,7 +132,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
     [Fact]
     public async Task Reschedule_cancels_old_reminder_and_schedules_one_new()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
         var entityId = Guid.CreateVersion7();
@@ -168,7 +168,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
     [Fact]
     public async Task Sms_at_0300_is_deferred_to_quiet_hours()
     {
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
@@ -205,7 +205,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         });
         created.EnsureSuccessStatusCode();
 
-        using (var scope = _factory.Services.CreateScope())
+        using (var scope = await _factory.CreateTenantScopeAsync())
         {
             var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
             db.NotificationLog.Add(new NotificationLog(
@@ -235,7 +235,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         var ok = await client.SendAsync(req);
         ok.EnsureSuccessStatusCode();
 
-        using var check = _factory.Services.CreateScope();
+        using var check = await _factory.CreateTenantScopeAsync();
         var owners = check.ServiceProvider.GetRequiredService<EquineDbContext>();
         var owner = await owners.Owners.SingleAsync(o => o.Email == email);
         owner.EmailInvalid.ShouldBeTrue();
@@ -265,7 +265,8 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
             phone = "0704444444"
         })).EnsureSuccessStatusCode();
 
-        (await client.PostAsJsonAsync("/api/public/auth/magic-link", new { email = ownerEmail })).EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/public/default/auth/magic-link", new { email = ownerEmail })).EnsureSuccessStatusCode();
+        await DispatchDueAsync();
         var sent = _factory.Services.GetRequiredService<RecordingEmailSender>().Sent
             .FirstOrDefault(m => string.Equals(m.To, ownerEmail, StringComparison.OrdinalIgnoreCase));
         sent.ShouldNotBeNull($"recipients: {string.Join(", ", _factory.Services.GetRequiredService<RecordingEmailSender>().Sent.Select(m => m.To))}");
@@ -339,6 +340,7 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
 
         settings.GetProperty("publicBaseUrl").GetString().ShouldBe("http://bokning.example.se");
         settings.GetProperty("embedSnippet").GetString().ShouldContain("http://bokning.example.se/widget/v1/loader.js");
+        settings.GetProperty("embedSnippet").GetString().ShouldContain("data-slug=");
         settings.GetProperty("embedSnippet").GetString().ShouldNotContain("localhost:5087");
     }
 
@@ -390,7 +392,8 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         ownerB.EnsureSuccessStatusCode();
         horseA.EnsureSuccessStatusCode();
         horseB.EnsureSuccessStatusCode();
-        (await admin.PostAsJsonAsync("/api/public/auth/magic-link", new { email = ownerAEmail })).EnsureSuccessStatusCode();
+        (await admin.PostAsJsonAsync("/api/public/default/auth/magic-link", new { email = ownerAEmail })).EnsureSuccessStatusCode();
+        await DispatchDueAsync();
         var mail = _factory.Services.GetRequiredService<RecordingEmailSender>().Sent
             .FirstOrDefault(m => string.Equals(m.To, ownerAEmail, StringComparison.OrdinalIgnoreCase));
         mail.ShouldNotBeNull($"recipients: {string.Join(", ", _factory.Services.GetRequiredService<RecordingEmailSender>().Sent.Select(m => m.To))}");
@@ -442,19 +445,27 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         journal.EnsureSuccessStatusCode();
         var journalId = (await journal.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("id").GetGuid();
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE journal_entries SET \"CreatedAt\" = {DateTimeOffset.UtcNow.AddHours(-25)} WHERE \"Id\" = {journalId}");
         var jobs = scope.ServiceProvider.GetRequiredService<Equine.Jobs.NotificationJobs>();
         await jobs.ScanUnsignedJournals();
+        await DispatchDueAsync();
         _factory.Services.GetRequiredService<RecordingEmailSender>().Sent
             .ShouldContain(m => m.Subject.Contains("Osignerad", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task DispatchDueAsync()
+    {
+        using var scope = await _factory.CreateTenantScopeAsync();
+        await scope.ServiceProvider.GetRequiredService<NotificationDispatcher>().DispatchDueAsync();
     }
 
     private static async Task Dispatch(IServiceProvider root)
     {
         using var scope = root.CreateScope();
+        await EquineApiFactory.BindDefaultTenantAsync(scope.ServiceProvider);
         await scope.ServiceProvider.GetRequiredService<NotificationDispatcher>().DispatchDueAsync();
     }
 

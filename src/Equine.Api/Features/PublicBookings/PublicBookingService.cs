@@ -11,6 +11,7 @@ using Equine.Infrastructure.Audit;
 using Equine.Infrastructure.Email;
 using Equine.Infrastructure.Scheduling;
 using Equine.Infrastructure.Tokens;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -32,6 +33,7 @@ public sealed class PublicBookingService
     private readonly PublicBookingTokenService _tokens;
     private readonly WidgetSettingsService _settings;
     private readonly PractitionerResolver _practitioner;
+    private readonly ITenantContext _tenant;
     private readonly ILogger<PublicBookingService> _log;
 
     public PublicBookingService(
@@ -44,6 +46,7 @@ public sealed class PublicBookingService
         PublicBookingTokenService tokens,
         WidgetSettingsService settings,
         PractitionerResolver practitioner,
+        ITenantContext tenant,
         ILogger<PublicBookingService> log)
     {
         _db = db;
@@ -55,6 +58,7 @@ public sealed class PublicBookingService
         _tokens = tokens;
         _settings = settings;
         _practitioner = practitioner;
+        _tenant = tenant;
         _log = log;
     }
 
@@ -343,13 +347,17 @@ public sealed class PublicBookingService
         if (!_tokens.TryUnprotect(token, purpose, out var lineId, out var expired) || expired)
             return null;
 
-        return await _db.BookingLines
+        var line = await _db.BookingLines
+            .IgnoreQueryFilters()
             .Include(l => l.Visit).ThenInclude(v => v.Location)
             .Include(l => l.Visit).ThenInclude(v => v.Lines)
             .Include(l => l.Owner)
             .Include(l => l.Horse)
             .Include(l => l.TreatmentType)
             .FirstOrDefaultAsync(l => l.Id == lineId && l.Source == BookingSource.Widget, cancellationToken);
+        if (line is not null)
+            _tenant.SetTenant(line.TenantId);
+        return line;
     }
 
     private async Task<TreatmentType> RequireOnlineTreatment(Guid treatmentId, CancellationToken cancellationToken)

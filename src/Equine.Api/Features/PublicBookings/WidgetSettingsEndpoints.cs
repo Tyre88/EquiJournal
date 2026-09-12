@@ -1,4 +1,5 @@
 using Equine.Infrastructure;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,7 +11,7 @@ public static class WidgetSettingsEndpoints
     {
         var group = app.MapGroup("/api/app/widget-settings").RequireAuthorization("CanAdminister");
 
-        group.MapGet("/", async (HttpContext http, WidgetSettingsService settings, EquineDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (HttpContext http, WidgetSettingsService settings, ITenantContext tenant, EquineDbContext db, CancellationToken ct) =>
         {
             var s = await settings.GetAsync(ct);
             var publicBaseUrl = ResolvePublicBaseUrl(s.PublicBaseUrl, http.Request);
@@ -18,6 +19,7 @@ public static class WidgetSettingsEndpoints
                 .OrderBy(t => t.Name)
                 .Select(t => new { t.Id, t.Name, t.Slug, t.BookableOnline, t.RequiresApproval, t.Status })
                 .ToListAsync(ct);
+            var tenantSlug = tenant.Slug ?? "default";
             return Results.Ok(new
             {
                 allowedOrigins = s.GetAllowedOrigins(),
@@ -30,13 +32,13 @@ public static class WidgetSettingsEndpoints
                 s.ContactPhone,
                 s.ContactEmail,
                 treatments,
-                embedSnippet = EmbedSnippet(publicBaseUrl),
+                embedSnippet = EmbedSnippet(publicBaseUrl, tenantSlug),
                 treatmentSnippets = treatments.Where(t => !string.IsNullOrWhiteSpace(t.Slug))
-                    .Select(t => new { t.Id, t.Name, t.Slug, snippet = EmbedSnippet(publicBaseUrl, t.Slug) })
+                    .Select(t => new { t.Id, t.Name, t.Slug, snippet = EmbedSnippet(publicBaseUrl, tenantSlug, t.Slug) })
             });
         }).WithName("GetWidgetSettings");
 
-        group.MapPut("/", async (HttpContext http, WidgetSettingsUpdateRequest request, WidgetSettingsService settings, CancellationToken ct) =>
+        group.MapPut("/", async (HttpContext http, WidgetSettingsUpdateRequest request, WidgetSettingsService settings, ITenantContext tenant, CancellationToken ct) =>
         {
             var origins = (request.AllowedOrigins ?? [])
                 .Select(o => o.Trim().TrimEnd('/'))
@@ -67,7 +69,7 @@ public static class WidgetSettingsEndpoints
                 publicBaseUrl,
                 s.ContactPhone,
                 s.ContactEmail,
-                embedSnippet = EmbedSnippet(publicBaseUrl)
+                embedSnippet = EmbedSnippet(publicBaseUrl, tenant.Slug ?? "default")
             });
         }).WithName("UpdateWidgetSettings");
 
@@ -90,7 +92,7 @@ public static class WidgetSettingsEndpoints
         return uri.IsLoopback;
     }
 
-    public static string EmbedSnippet(string publicBaseUrl, string? treatmentSlug = null)
+    public static string EmbedSnippet(string publicBaseUrl, string tenantSlug, string? treatmentSlug = null)
     {
         var treatmentAttr = string.IsNullOrWhiteSpace(treatmentSlug)
             ? ""
@@ -99,6 +101,7 @@ public static class WidgetSettingsEndpoints
         <div id="hastbokning"></div>
         <script src="{publicBaseUrl.TrimEnd('/')}/widget/v1/loader.js"
                 data-target="#hastbokning"
+                data-slug="{tenantSlug}"
                 data-lang="sv"{treatmentAttr}
                 async></script>
         """;

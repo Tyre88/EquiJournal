@@ -3,10 +3,8 @@ using System.Text.Json;
 
 namespace Equine.Domain.Entities;
 
-public class WidgetSettings : Entity
+public class WidgetSettings : TenantScopedEntity
 {
-    public static readonly Guid SingletonId = Guid.Parse("00000000-0000-7000-0000-000000000001");
-
     public string AllowedOriginsJson { get; private set; } = "[]";
     public bool ShowPrices { get; private set; } = true;
     public string BookingTerms { get; private set; } = string.Empty;
@@ -18,7 +16,7 @@ public class WidgetSettings : Entity
     public string ContactEmail { get; private set; } = string.Empty;
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
-    private WidgetSettings() : base(SingletonId)
+    private WidgetSettings()
     {
         AllowedOriginsJson = JsonSerializer.Serialize(new[]
         {

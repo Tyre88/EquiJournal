@@ -2,6 +2,7 @@ using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Practice;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,24 +20,32 @@ public sealed class NotificationJobs
     public async Task DispatchDue()
     {
         using var scope = _scopes.CreateScope();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
         var dispatcher = scope.ServiceProvider.GetRequiredService<NotificationDispatcher>();
-        await dispatcher.DispatchDueAsync();
+        await work.ForEachActiveAsync(async (_, _) => await dispatcher.DispatchDueAsync(), CancellationToken.None);
     }
 
     public async Task ExpireUnverified()
     {
         using var scope = _scopes.CreateScope();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
         var service = scope.ServiceProvider.GetRequiredService<ExpireUnverifiedBookingsService>();
-        await service.RunAsync();
+        await work.ForEachActiveAsync(async (_, ct) => { await service.RunAsync(ct); }, CancellationToken.None);
     }
 
     public async Task ScanFollowUps()
     {
         using var scope = _scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
-        var practice = scope.ServiceProvider.GetRequiredService<PracticeSettingsService>();
-        var widget = scope.ServiceProvider.GetRequiredService<WidgetSettingsService>();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
+        await work.ForEachActiveAsync((tenant, ct) => ScanFollowUpsForTenant(scope.ServiceProvider, ct), CancellationToken.None);
+    }
+
+    private static async Task ScanFollowUpsForTenant(IServiceProvider services, CancellationToken ct)
+    {
+        var db = services.GetRequiredService<EquineDbContext>();
+        var scheduler = services.GetRequiredService<INotificationScheduler>();
+        var practice = services.GetRequiredService<PracticeSettingsService>();
+        var widget = services.GetRequiredService<WidgetSettingsService>();
         var settings = await practice.GetAsync();
         var widgetSettings = await widget.GetAsync();
         var now = DateTimeOffset.UtcNow;
@@ -46,7 +55,7 @@ public sealed class NotificationJobs
             .Include(h => h.JournalEntries)
             .Where(h => h.FollowUpDismissedAt == null)
             .Where(h => h.FollowUpSnoozedUntil == null || h.FollowUpSnoozedUntil < now)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         foreach (var horse in horses)
         {
@@ -86,14 +95,20 @@ public sealed class NotificationJobs
     public async Task ScanUnsignedJournals()
     {
         using var scope = _scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
-        var practice = await scope.ServiceProvider.GetRequiredService<PracticeSettingsService>().GetAsync();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
+        await work.ForEachActiveAsync((_, ct) => ScanUnsignedJournalsForTenant(scope.ServiceProvider, ct), CancellationToken.None);
+    }
+
+    private static async Task ScanUnsignedJournalsForTenant(IServiceProvider services, CancellationToken ct)
+    {
+        var db = services.GetRequiredService<EquineDbContext>();
+        var scheduler = services.GetRequiredService<INotificationScheduler>();
+        var practice = await services.GetRequiredService<PracticeSettingsService>().GetAsync(ct);
         var cutoff = DateTimeOffset.UtcNow.AddHours(-24);
         var drafts = await db.JournalEntries
             .Include(j => j.Horse)
             .Where(j => j.Status == JournalStatus.Draft && j.CreatedAt <= cutoff)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         foreach (var journal in drafts)
         {
@@ -133,10 +148,16 @@ public sealed class NotificationJobs
     public async Task SendDailySummary()
     {
         using var scope = _scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
-        var notify = await scope.ServiceProvider.GetRequiredService<NotificationSettingsService>().GetAsync();
-        var practice = await scope.ServiceProvider.GetRequiredService<PracticeSettingsService>().GetAsync();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
+        await work.ForEachActiveAsync((_, ct) => SendDailySummaryForTenant(scope.ServiceProvider, ct), CancellationToken.None);
+    }
+
+    private static async Task SendDailySummaryForTenant(IServiceProvider services, CancellationToken ct)
+    {
+        var db = services.GetRequiredService<EquineDbContext>();
+        var scheduler = services.GetRequiredService<INotificationScheduler>();
+        var notify = await services.GetRequiredService<NotificationSettingsService>().GetAsync(ct);
+        var practice = await services.GetRequiredService<PracticeSettingsService>().GetAsync(ct);
         if (string.IsNullOrWhiteSpace(practice.Email)) return;
 
         var zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
@@ -191,9 +212,15 @@ public sealed class NotificationJobs
     public async Task SendWeeklyDigest()
     {
         using var scope = _scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        var scheduler = scope.ServiceProvider.GetRequiredService<INotificationScheduler>();
-        var practice = await scope.ServiceProvider.GetRequiredService<PracticeSettingsService>().GetAsync();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
+        await work.ForEachActiveAsync((_, ct) => SendWeeklyDigestForTenant(scope.ServiceProvider, ct), CancellationToken.None);
+    }
+
+    private static async Task SendWeeklyDigestForTenant(IServiceProvider services, CancellationToken ct)
+    {
+        var db = services.GetRequiredService<EquineDbContext>();
+        var scheduler = services.GetRequiredService<INotificationScheduler>();
+        var practice = await services.GetRequiredService<PracticeSettingsService>().GetAsync(ct);
         if (string.IsNullOrWhiteSpace(practice.Email)) return;
 
         var zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
@@ -253,11 +280,15 @@ public sealed class NotificationJobs
     public async Task PurgeLogs()
     {
         using var scope = _scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        var cutoff = DateTimeOffset.UtcNow.AddMonths(-12);
-        var old = await db.NotificationLog.Where(l => l.CreatedAt < cutoff).ToListAsync();
-        db.NotificationLog.RemoveRange(old);
-        await db.SaveChangesAsync();
+        var work = scope.ServiceProvider.GetRequiredService<TenantProvisioningService>();
+        await work.ForEachActiveAsync(async (_, ct) =>
+        {
+            var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
+            var cutoff = DateTimeOffset.UtcNow.AddMonths(-12);
+            var old = await db.NotificationLog.Where(l => l.CreatedAt < cutoff).ToListAsync(ct);
+            db.NotificationLog.RemoveRange(old);
+            await db.SaveChangesAsync(ct);
+        }, CancellationToken.None);
     }
 
     public async Task CheckDeliverability()

@@ -33,11 +33,17 @@ public class DatabaseGrantTests : IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
         await db.Database.EnsureCreatedAsync();
 
+        var tenant = new Tenant("Grant", "grant");
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
         var owner = new Owner("Grant", "grant@ex.se", "0700");
+        owner.AssignTenant(tenant.Id);
         var horse = new Horse(owner.Id, "GrantHäst", birthYear: 2015);
+        horse.AssignTenant(tenant.Id);
         var journal = new JournalEntry(
             horse.Id, """{"Name":"Grant"}""", "Hast", "Sto", "2015", null,
             DateTimeOffset.UtcNow, "a", "b", "c");
+        journal.AssignTenant(tenant.Id);
         journal.Sign("tester");
         db.Owners.Add(owner);
         db.Horses.Add(horse);

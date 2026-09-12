@@ -1,6 +1,7 @@
 using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Import;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
@@ -22,8 +23,10 @@ public class HistoricImportTests : IAsyncLifetime
     [Fact]
     public async Task Dry_run_writes_nothing()
     {
-        await using var db = await CreateDb();
-        var importer = new HistoricImportService(db);
+        var (db, tenant) = await CreateDb();
+        await using (db)
+        {
+        var importer = new HistoricImportService(db, tenant);
         var report = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: false);
 
         report.DryRun.ShouldBeTrue();
@@ -33,13 +36,16 @@ public class HistoricImportTests : IAsyncLifetime
         (await db.Owners.CountAsync()).ShouldBe(0);
         (await db.Horses.CountAsync()).ShouldBe(0);
         (await db.JournalEntries.CountAsync()).ShouldBe(0);
+        }
     }
 
     [Fact]
     public async Task Commit_creates_signed_import_journals()
     {
-        await using var db = await CreateDb();
-        var importer = new HistoricImportService(db);
+        var (db, tenant) = await CreateDb();
+        await using (db)
+        {
+        var importer = new HistoricImportService(db, tenant);
         var report = await importer.ImportAsync(
             SampleOwners(), SampleHorses(), SampleJournals(), commit: true, signedByOverride: "Victor (import)");
 
@@ -52,13 +58,16 @@ public class HistoricImportTests : IAsyncLifetime
         journal.SignedBy.ShouldBe("Victor (import)");
         journal.PerformedAt.Year.ShouldBe(2023);
         journal.Anamnes.ShouldBe("stel");
+        }
     }
 
     [Fact]
     public async Task Duplicates_are_skipped_on_second_commit()
     {
-        await using var db = await CreateDb();
-        var importer = new HistoricImportService(db);
+        var (db, tenant) = await CreateDb();
+        await using (db)
+        {
+        var importer = new HistoricImportService(db, tenant);
         await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
         var second = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
 
@@ -68,11 +77,14 @@ public class HistoricImportTests : IAsyncLifetime
         second.Skipped.Count.ShouldBeGreaterThan(0);
         (await db.Owners.CountAsync()).ShouldBe(1);
         (await db.JournalEntries.CountAsync()).ShouldBe(1);
+        }
     }
 
-    private async Task<EquineDbContext> CreateDb()
+    private async Task<(EquineDbContext Db, ITenantContext Tenant)> CreateDb()
     {
+        var tenant = new TenantContext();
         var services = new ServiceCollection();
+        services.AddSingleton<ITenantContext>(tenant);
         services.AddDbContext<EquineDbContext>(o => o.UseNpgsql(_postgres.GetConnectionString()));
         var sp = services.BuildServiceProvider();
         var db = sp.GetRequiredService<EquineDbContext>();
@@ -80,7 +92,11 @@ public class HistoricImportTests : IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS btree_gist;");
         await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
         await db.Database.EnsureCreatedAsync();
-        return db;
+        var seeded = new Tenant("Test", "default");
+        db.Tenants.Add(seeded);
+        await db.SaveChangesAsync();
+        tenant.SetTenant(seeded.Id, seeded.Slug);
+        return (db, tenant);
     }
 
     private static List<IReadOnlyDictionary<string, string>> SampleOwners() =>

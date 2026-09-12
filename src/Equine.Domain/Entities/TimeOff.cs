@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class TimeOff : Entity
+public class TimeOff : TenantScopedEntity
 {
     public Guid PractitionerId { get; private set; }
     public DateTimeOffset StartsAt { get; private set; }

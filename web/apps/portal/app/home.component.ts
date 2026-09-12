@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../environments/environment';
 
@@ -34,7 +34,7 @@ interface HorseSummary {
     <div class="page">
       <h1>Mina sidor</h1>
       @if (!token) {
-        <p><a routerLink="/login">Logga in med e-postlänk</a></p>
+        <p><a [routerLink]="['/', slug, 'login']">Logga in med e-postlänk</a></p>
       } @else {
         <div class="card">
           <h2>Kontakt</h2>
@@ -75,6 +75,8 @@ interface HorseSummary {
 export class HomeComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  slug = this.route.snapshot.paramMap.get('slug') ?? '';
   token = localStorage.getItem('portal:token');
   name = '';
   phone = '';
@@ -82,11 +84,11 @@ export class HomeComponent implements OnInit {
   horses = signal<PortalHorse[]>([]);
   bookings = signal<PortalBooking[]>([]);
   summaries = signal<Record<string, HorseSummary[]>>({});
-  widgetUrl = `${environment.apiUrl}/widget/`;
+  widgetUrl = `${environment.apiUrl}/widget/${this.slug}`;
 
   ngOnInit(): void {
     if (!this.token) {
-      void this.router.navigateByUrl('/login');
+      void this.router.navigateByUrl(`/${this.slug}/login`);
       return;
     }
     const headers = this.headers();

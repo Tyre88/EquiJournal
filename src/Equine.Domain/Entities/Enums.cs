@@ -90,3 +90,23 @@ public enum NotificationDeliveryStatus
     Failed,
     Cancelled
 }
+
+public enum TenantStatus
+{
+    Active,
+    Suspended
+}
+
+public enum TenantPlan
+{
+    Free,
+    Paid
+}
+
+public enum TenantSubscriptionStatus
+{
+    Free,
+    Active,
+    PastDue,
+    Canceled
+}

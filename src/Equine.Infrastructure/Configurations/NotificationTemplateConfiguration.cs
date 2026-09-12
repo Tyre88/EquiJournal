@@ -14,6 +14,7 @@ public class NotificationTemplateConfiguration : IEntityTypeConfiguration<Notifi
         builder.Property(t => t.Channel).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.Subject).HasMaxLength(300);
         builder.Property(t => t.Body).HasMaxLength(16000);
-        builder.HasIndex(t => new { t.Type, t.Channel }).IsUnique();
+        builder.HasIndex(t => t.TenantId);
+        builder.HasIndex(t => new { t.TenantId, t.Type, t.Channel }).IsUnique();
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Import;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,8 @@ connection ??= builder.Configuration.GetConnectionString("Default")
     ?? Environment.GetEnvironmentVariable("ConnectionStrings__Default")
     ?? throw new InvalidOperationException("Set ConnectionStrings__Default or --connection.");
 
+builder.Services.AddScoped<ITenantContext, TenantContext>();
+builder.Services.AddScoped<HistoricImportService>();
 builder.Services.AddDbContext<EquineDbContext>(o => o.UseNpgsql(connection));
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
@@ -56,7 +59,7 @@ var owners = SemicolonCsv.ReadFile(ownersPath);
 var horses = horsesPath is null ? [] : SemicolonCsv.ReadFile(horsesPath);
 var journals = journalsPath is null ? [] : SemicolonCsv.ReadFile(journalsPath);
 
-var importer = new HistoricImportService(db);
+var importer = scope.ServiceProvider.GetRequiredService<HistoricImportService>();
 var report = await importer.ImportAsync(owners, horses, journals, commit: !dryRun, signedBy);
 
 var json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });

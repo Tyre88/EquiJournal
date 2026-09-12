@@ -2,9 +2,8 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class TreatmentType
+public class TreatmentType : TenantScopedEntity
 {
-    public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public string Slug { get; private set; } = string.Empty;
     public string ShortDescription { get; private set; } = string.Empty;

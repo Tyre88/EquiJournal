@@ -26,15 +26,15 @@ public class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         builder.Property(o => o.EmailVerified).HasDefaultValue(true);
         builder.Property(o => o.EmailInvalid).HasDefaultValue(false);
 
-        builder.HasIndex(o => o.Email)
+        builder.HasIndex(o => new { o.TenantId, o.Email })
             .IsUnique()
             .HasFilter("\"DeletedAt\" IS NULL")
             .HasDatabaseName("ix_owners_email_unique");
+        builder.HasIndex(o => o.TenantId);
 
         builder.HasIndex(o => o.Name).HasMethod("gin").HasOperators("gin_trgm_ops").HasFilter("\"DeletedAt\" IS NULL").HasDatabaseName("ix_owners_name_trgm");
         builder.HasIndex(o => o.Phone).HasMethod("gin").HasOperators("gin_trgm_ops").HasFilter("\"DeletedAt\" IS NULL").HasDatabaseName("ix_owners_phone_trgm");
 
         builder.Ignore(o => o.IsDeleted);
-        builder.HasQueryFilter(o => o.DeletedAt == null);
     }
 }

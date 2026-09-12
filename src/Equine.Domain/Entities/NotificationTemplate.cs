@@ -3,7 +3,7 @@ using Equine.Domain.Notifications;
 
 namespace Equine.Domain.Entities;
 
-public class NotificationTemplate : Entity
+public class NotificationTemplate : TenantScopedEntity
 {
     public NotificationType Type { get; private set; }
     public NotificationChannel Channel { get; private set; }

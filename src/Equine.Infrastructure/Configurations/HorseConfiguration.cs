@@ -30,10 +30,10 @@ public class HorseConfiguration : IEntityTypeConfiguration<Horse>
         builder.Property(h => h.UpdatedAt).HasDefaultValueSql("now()");
         builder.Property(h => h.DeletedAt);
 
+        builder.HasIndex(h => h.TenantId);
         builder.HasIndex(h => h.OwnerId);
         builder.HasIndex(h => h.Name).HasMethod("gin").HasOperators("gin_trgm_ops").HasDatabaseName("ix_horses_name_trgm");
 
         builder.Ignore(h => h.IsDeleted);
-        builder.HasQueryFilter(h => h.DeletedAt == null);
     }
 }

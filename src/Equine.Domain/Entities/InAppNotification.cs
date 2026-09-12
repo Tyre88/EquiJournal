@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class InAppNotification : Entity
+public class InAppNotification : TenantScopedEntity
 {
     public Guid UserId { get; private set; }
     public NotificationType Type { get; private set; }

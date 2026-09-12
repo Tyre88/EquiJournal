@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class NotificationLog : Entity
+public class NotificationLog : TenantScopedEntity
 {
     public NotificationType Type { get; private set; }
     public NotificationChannel Channel { get; private set; }

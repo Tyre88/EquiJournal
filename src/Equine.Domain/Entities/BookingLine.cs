@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class BookingLine : Entity
+public class BookingLine : TenantScopedEntity
 {
     public Guid VisitId { get; private set; }
     public Visit Visit { get; private set; } = null!;

@@ -176,6 +176,10 @@ public static class AuthEndpoints
 
     public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
+    public static Task<(string AccessToken, string RefreshToken, DateTimeOffset Expires)> IssueTokensForUser(
+        ApplicationUser user, UserManager<ApplicationUser> userManager, IConfiguration configuration) =>
+        IssueTokens(user, userManager, configuration);
+
     private static async Task<(string AccessToken, string RefreshToken, DateTimeOffset Expires)> IssueTokens(
         ApplicationUser user, UserManager<ApplicationUser> userManager, IConfiguration configuration)
     {
@@ -194,7 +198,8 @@ public static class AuthEndpoints
             new("displayName", user.DisplayName ?? user.UserName ?? string.Empty),
             new("sub", user.Id.ToString()),
             new("isFirstLogin", user.IsFirstLogin.ToString()),
-            new("twoFactorEnabled", user.TwoFactorEnabled.ToString())
+            new("twoFactorEnabled", user.TwoFactorEnabled.ToString()),
+            new("tenantId", user.TenantId.ToString())
         };
         foreach (var role in roles)
         {

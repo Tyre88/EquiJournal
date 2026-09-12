@@ -1,6 +1,6 @@
 # Architecture overview
 
-HästJournal is a **modular monolith**: one ASP.NET Core API, one PostgreSQL database, one Docker image that also serves the Angular admin, widget, and portal.
+HästJournal is a **modular monolith**: one ASP.NET Core API, one PostgreSQL database, one Docker image that also serves the Angular admin, widget, and portal. Multiple practices share the database and are isolated by `TenantId` (see [ADR-0009](adr/0009-multi-tenancy.md)). Practices self-register; the platform is free until Stripe subscriptions are added.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ flowchart LR
 
 ## Security boundary
 
-- `/api/public/*` — anonymous, rate-limited, no owner/horse names on slot queries
-- `/api/app/*` — JWT, role policies
+- `/api/public/{slug}/*` — anonymous, rate-limited, no owner/horse names on slot queries; slug selects the practice
+- `/api/app/*` — JWT with `tenantId`, role policies
 
 See [ADR index](adr/README.md). Hosting: Linux VPS, Dokploy, Traefik (Let’s Encrypt). Backups: [runbooks/backup.md](runbooks/backup.md).

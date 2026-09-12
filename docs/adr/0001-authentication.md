@@ -6,7 +6,7 @@
 
 ## Context
 
-The system is a single-practitioner tool with an Angular SPA (admin app) and a public anonymous booking widget. The API must authenticate the practitioner without introducing session-cookies that complicate cross-origin deployment, while also supporting a public anonymous API surface.
+The system is a multi-tenant practice tool with an Angular SPA (admin app) and a public anonymous booking widget. Each staff user belongs to one tenant; JWTs carry a `tenantId` claim. The API must authenticate the practitioner without introducing session-cookies that complicate cross-origin deployment, while also supporting a public anonymous API surface.
 
 ## Decision
 
@@ -28,7 +28,7 @@ We use **JWT bearer tokens** (short-lived access tokens of 15 minutes + refresh 
 ## Alternatives Considered
 
 1. **Cookie-based auth with SameSite:** Would work for same-origin deployments but complicates multi-origin setups (e.g., widget on a third-party site).
-2. **IdentityServer/Duende:** Over-engineered for a single-practitioner system. ASP.NET Identity + custom JWT is sufficient.
+2. **IdentityServer/Duende:** Over-engineered for the current Identity + JWT setup. ASP.NET Identity + custom JWT is sufficient.
 
 ## Implementation Notes
 

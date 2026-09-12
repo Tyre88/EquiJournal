@@ -3,10 +3,8 @@ using Equine.Domain.Locations;
 
 namespace Equine.Domain.Entities;
 
-public class PracticeSettings : Entity
+public class PracticeSettings : TenantScopedEntity
 {
-    public static readonly Guid SingletonId = Guid.Parse("00000000-0000-7000-0000-000000000002");
-
     public string Name { get; private set; } = "Behandlare";
     public string Clinic { get; private set; } = "HästJournal";
     public string Address { get; private set; } = string.Empty;
@@ -20,7 +18,7 @@ public class PracticeSettings : Entity
     public string VehicleRegistrationNumber { get; private set; } = string.Empty;
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
-    private PracticeSettings() : base(SingletonId)
+    private PracticeSettings()
     {
     }
 

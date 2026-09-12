@@ -3,10 +3,8 @@ using System.Text.Json;
 
 namespace Equine.Domain.Entities;
 
-public class NotificationSettings : Entity
+public class NotificationSettings : TenantScopedEntity
 {
-    public static readonly Guid SingletonId = Guid.Parse("00000000-0000-7000-0000-000000000003");
-
     public string EnabledJson { get; private set; } = "{}";
     public int ReminderLeadHours { get; private set; } = 24;
     public TimeOnly QuietHoursStart { get; private set; } = new(7, 0);
@@ -15,7 +13,7 @@ public class NotificationSettings : Entity
     public TimeOnly MorningSummaryTime { get; private set; } = new(7, 0);
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
-    private NotificationSettings() : base(SingletonId)
+    private NotificationSettings()
     {
         EnabledJson = JsonSerializer.Serialize(DefaultEnabled());
     }

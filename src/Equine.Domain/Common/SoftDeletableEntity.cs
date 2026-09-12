@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Common;
 
-public abstract class SoftDeletableEntity : Entity
+public abstract class SoftDeletableEntity : TenantScopedEntity
 {
     public DateTimeOffset? DeletedAt { get; protected set; }
 

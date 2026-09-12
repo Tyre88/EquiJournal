@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class Visit : Entity
+public class Visit : TenantScopedEntity
 {
     public Guid PractitionerId { get; private set; }
     public Guid LocationId { get; private set; }

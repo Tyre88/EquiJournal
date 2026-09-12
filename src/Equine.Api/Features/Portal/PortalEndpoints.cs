@@ -6,6 +6,7 @@ using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Practice;
 using Equine.Infrastructure.Tokens;
 using ConsumedMagicLinkStore = Equine.Infrastructure.Tokens.ConsumedMagicLinkStore;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -16,12 +17,13 @@ public static class PortalEndpoints
 {
     public static IEndpointRouteBuilder MapPortalEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/public/auth/magic-link", async (
+        app.MapPost("/api/public/{slug}/auth/magic-link", async (
             MagicLinkRequest request,
             EquineDbContext db,
             INotificationScheduler scheduler,
             PracticeSettingsService practice,
             WidgetSettingsService widget,
+            ITenantContext tenant,
             PublicBookingTokenService tokens,
             CancellationToken ct) =>
         {
@@ -35,7 +37,8 @@ public static class PortalEndpoints
                 var token = tokens.Protect(owner.Id, DateTimeOffset.UtcNow.AddMinutes(15), PublicBookingTokenService.MagicLinkPurpose);
                 var w = await widget.GetAsync(ct);
                 var p = await practice.GetAsync(ct);
-                var url = $"{w.PublicBaseUrl}/portal/in?token={Uri.EscapeDataString(token)}";
+                var slug = tenant.Slug ?? "default";
+                var url = $"{w.PublicBaseUrl}/portal/{Uri.EscapeDataString(slug)}/in?token={Uri.EscapeDataString(token)}";
                 await scheduler.EnqueueAsync(
                     NotificationType.MagicLink,
                     NotificationChannel.Email,
@@ -62,6 +65,7 @@ public static class PortalEndpoints
             PublicBookingTokenService tokens,
             ConsumedMagicLinkStore consumed,
             UserManager<ApplicationUser> users,
+            ITenantContext tenant,
             IConfiguration configuration,
             CancellationToken ct) =>
         {
@@ -81,8 +85,9 @@ public static class PortalEndpoints
 
             await consumed.ConsumeAsync(tokenHash, ct);
 
-            var owner = await db.Owners.FirstOrDefaultAsync(o => o.Id == ownerId, ct);
+            var owner = await db.Owners.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == ownerId, ct);
             if (owner is null) return Results.BadRequest(new { error = "Ogiltig länk." });
+            tenant.SetTenant(owner.TenantId);
 
             ApplicationUser? user = null;
             if (owner.UserId is Guid uid)
@@ -92,6 +97,7 @@ public static class PortalEndpoints
                 user = new ApplicationUser
                 {
                     Id = Guid.CreateVersion7(),
+                    TenantId = owner.TenantId,
                     Email = owner.Email,
                     UserName = owner.Email,
                     DisplayName = owner.Name,
@@ -114,6 +120,7 @@ public static class PortalEndpoints
                 new(ClaimTypes.Email, user.Email ?? ""),
                 new("displayName", user.DisplayName ?? owner.Name),
                 new("ownerId", owner.Id.ToString()),
+                new("tenantId", owner.TenantId.ToString()),
                 new(ClaimTypes.Role, "Client")
             };
             var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(
@@ -131,15 +138,17 @@ public static class PortalEndpoints
         app.MapGet("/api/public/unsubscribe", async (
             string token,
             EquineDbContext db,
+            ITenantContext tenant,
             PublicBookingTokenService tokens,
             CancellationToken ct) =>
         {
             if (!tokens.TryUnprotect(token, PublicBookingTokenService.UnsubscribePurpose, out var ownerId, out var expired)
                 || expired)
                 return Results.BadRequest();
-            var owner = await db.Owners.FirstOrDefaultAsync(o => o.Id == ownerId, ct);
+            var owner = await db.Owners.IgnoreQueryFilters().FirstOrDefaultAsync(o => o.Id == ownerId, ct);
             if (owner is not null)
             {
+                tenant.SetTenant(owner.TenantId);
                 owner.SetMarketingConsent(false);
                 await db.SaveChangesAsync(ct);
             }

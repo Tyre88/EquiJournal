@@ -10,3 +10,4 @@
 | [0006](0006-visit-and-booking-line.md) | Visit + BookingLine |
 | [0007](0007-widget-iframe.md) | Widget iframe + loader |
 | [0008](0008-notification-providers.md) | Postmark, 46elks, Hangfire |
+| [0009](0009-multi-tenancy.md) | Shared-database tenancy, slug URLs, free self-registration |

@@ -6,6 +6,14 @@ export class PublicApiError extends Error {
   }
 }
 
+export function tenantSlug(): string {
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  const parts = path.split('/').filter(Boolean);
+  if (parts[0] === 'widget' || parts[0] === 'portal')
+    return parts[1] ?? '';
+  return parts[0] ?? '';
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${environment.apiUrl}${path}`;
   let res: Response;
@@ -67,10 +75,10 @@ export interface BookingSummary {
 }
 
 export const publicApi = {
-  treatments: () => request<TreatmentsResponse>('/api/public/treatments'),
+  treatments: () => request<TreatmentsResponse>(`/api/public/${tenantSlug()}/treatments`),
   slots: (treatmentId: string, from: string, to: string, postcode: string) =>
-    request<{ starts: string[] }>(`/api/public/slots?treatmentId=${treatmentId}&from=${from}&to=${to}&postcode=${encodeURIComponent(postcode)}`),
-  create: (body: unknown) => request<{ reference: string }>('/api/public/bookings', { method: 'POST', body: JSON.stringify(body) }),
+    request<{ starts: string[] }>(`/api/public/${tenantSlug()}/slots?treatmentId=${treatmentId}&from=${from}&to=${to}&postcode=${encodeURIComponent(postcode)}`),
+  create: (body: unknown) => request<{ reference: string }>(`/api/public/${tenantSlug()}/bookings`, { method: 'POST', body: JSON.stringify(body) }),
   verify: (token: string) => request<void>('/api/public/bookings/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   summary: (token: string) => request<BookingSummary>(`/api/public/bookings/${encodeURIComponent(token)}`),
   cancel: (token: string) => request<void>(`/api/public/bookings/${encodeURIComponent(token)}/cancel`, { method: 'POST', body: JSON.stringify({}) }),

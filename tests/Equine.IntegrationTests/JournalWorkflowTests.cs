@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Equine.Infrastructure;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +62,24 @@ public class EquineApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["Admin:DisplayName"] = "Victor"
             });
         });
+    }
+
+    public static async Task BindDefaultTenantAsync(IServiceProvider services)
+    {
+        var tenant = services.GetRequiredService<ITenantContext>();
+        if (tenant.HasTenant)
+            return;
+
+        var db = services.GetRequiredService<EquineDbContext>();
+        var row = await db.Tenants.AsNoTracking().OrderBy(t => t.CreatedAt).FirstAsync();
+        tenant.SetTenant(row.Id, row.Slug);
+    }
+
+    public async Task<IServiceScope> CreateTenantScopeAsync()
+    {
+        var scope = Services.CreateScope();
+        await BindDefaultTenantAsync(scope.ServiceProvider);
+        return scope;
     }
 }
 
@@ -126,7 +145,7 @@ public class JournalWorkflowTests : IClassFixture<EquineApiFactory>
 
         read.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var actions = await db.AuditLog.Select(a => a.Action).ToListAsync();
         actions.ShouldContain("JOURNAL_CREATE");

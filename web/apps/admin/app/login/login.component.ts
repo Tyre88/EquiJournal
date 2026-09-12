@@ -1,12 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   template: `
     <div class="auth-screen">
       <div class="auth-card">
@@ -57,6 +57,9 @@ import { AuthService } from '../auth.service';
             {{ loading() ? 'Loggar in…' : 'Logga in' }}
           </button>
         </form>
+        <p class="subtitle" style="margin-top:1rem">
+          Ny verksamhet? <a routerLink="/register">Skapa konto gratis</a>
+        </p>
       </div>
     </div>
   `

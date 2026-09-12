@@ -1,4 +1,5 @@
 using Equine.Domain.Entities;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -11,28 +12,36 @@ public sealed class WidgetSettingsService
 
     private readonly EquineDbContext _db;
     private readonly IMemoryCache _cache;
+    private readonly ITenantContext _tenant;
 
-    public WidgetSettingsService(EquineDbContext db, IMemoryCache cache)
+    public WidgetSettingsService(EquineDbContext db, IMemoryCache cache, ITenantContext tenant)
     {
         _db = db;
         _cache = cache;
+        _tenant = tenant;
     }
+
+    private string CacheKeyForTenant =>
+        _tenant.HasTenant ? $"{CacheKey}:{_tenant.TenantId:N}" : CacheKey;
 
     public async Task<WidgetSettings> GetAsync(CancellationToken cancellationToken = default)
     {
-        if (_cache.TryGetValue(CacheKey, out WidgetSettings? cached) && cached is not null)
+        if (_cache.TryGetValue(CacheKeyForTenant, out WidgetSettings? cached) && cached is not null)
             return cached;
 
         var settings = await _db.WidgetSettings.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == WidgetSettings.SingletonId, cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
         if (settings is null)
         {
             settings = WidgetSettings.CreateDefault();
-            _db.WidgetSettings.Add(settings);
-            await _db.SaveChangesAsync(cancellationToken);
+            if (_tenant.HasTenant)
+            {
+                _db.WidgetSettings.Add(settings);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
 
-        _cache.Set(CacheKey, settings, CacheTtl);
+        _cache.Set(CacheKeyForTenant, settings, CacheTtl);
         return settings;
     }
 
@@ -49,7 +58,7 @@ public sealed class WidgetSettingsService
         CancellationToken cancellationToken = default)
     {
         var settings = await _db.WidgetSettings
-            .FirstOrDefaultAsync(s => s.Id == WidgetSettings.SingletonId, cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
         if (settings is null)
         {
             settings = WidgetSettings.CreateDefault();
@@ -67,7 +76,7 @@ public sealed class WidgetSettingsService
             contactPhone,
             contactEmail);
         await _db.SaveChangesAsync(cancellationToken);
-        _cache.Remove(CacheKey);
+        _cache.Remove(CacheKeyForTenant);
         return settings;
     }
 }

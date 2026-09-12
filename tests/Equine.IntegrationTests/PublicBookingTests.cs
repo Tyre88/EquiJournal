@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Email;
+using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Tokens;
 using Equine.Jobs;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +30,7 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var (_, _, treatmentId, startsAt) = await SeedOnlineAsync(admin, hour: 8, dayOffset: 20, ownerName: "Hemlig Ägare", horseName: "HemligHäst");
 
         var client = _factory.CreateClient();
-        var treatments = await client.GetFromJsonAsync<JsonElement>("/api/public/treatments", Json);
+        var treatments = await client.GetFromJsonAsync<JsonElement>("/api/public/default/treatments", Json);
         var body = treatments.GetRawText();
         body.ShouldNotContain("Hemlig");
         body.ShouldNotContain("owner", Case.Insensitive);
@@ -37,7 +38,7 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
 
         var from = DateOnly.FromDateTime(startsAt.UtcDateTime.AddDays(-1));
         var to = from.AddDays(10);
-        var slots = await client.GetAsync($"/api/public/slots?treatmentId={treatmentId}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&postcode=27531");
+        var slots = await client.GetAsync($"/api/public/default/slots?treatmentId={treatmentId}&from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}&postcode=27531");
         slots.EnsureSuccessStatusCode();
         var slotBody = await slots.Content.ReadAsStringAsync();
         slotBody.ShouldNotContain("Hemlig");
@@ -58,7 +59,7 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var stockholm = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
         var local = TimeZoneInfo.ConvertTime(startsAt, stockholm);
         var day = DateOnly.FromDateTime(local.DateTime);
-        var url = $"/api/public/slots?treatmentId={treatmentId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&postcode=27531";
+        var url = $"/api/public/default/slots?treatmentId={treatmentId}&from={day:yyyy-MM-dd}&to={day:yyyy-MM-dd}&postcode=27531";
 
         var before = await publicClient.GetFromJsonAsync<JsonElement>(url, Json);
         var beforeCount = before.GetProperty("starts").GetArrayLength();
@@ -79,7 +80,7 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         });
         timeOff.EnsureSuccessStatusCode();
         var afterTimeOff = await publicClient.GetFromJsonAsync<JsonElement>(
-            $"/api/public/slots?treatmentId={treatment2}&from={day2:yyyy-MM-dd}&to={day2:yyyy-MM-dd}&postcode=27531", Json);
+            $"/api/public/default/slots?treatmentId={treatment2}&from={day2:yyyy-MM-dd}&to={day2:yyyy-MM-dd}&postcode=27531", Json);
 
         afterBooking.GetProperty("starts").ValueKind.ShouldBe(JsonValueKind.Array);
         afterTimeOff.GetProperty("starts").ValueKind.ShouldBe(JsonValueKind.Array);
@@ -99,8 +100,8 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var bodyA = PublicBody(treatmentId, startsAt, "anna-a@ex.se");
         var bodyB = PublicBody(treatmentId, startsAt, "anna-b@ex.se");
         var results = await Task.WhenAll(
-            a.PostAsJsonAsync("/api/public/bookings", bodyA),
-            b.PostAsJsonAsync("/api/public/bookings", bodyB));
+            a.PostAsJsonAsync("/api/public/default/bookings", bodyA),
+            b.PostAsJsonAsync("/api/public/default/bookings", bodyB));
 
         results.Count(r => r.StatusCode == HttpStatusCode.Created).ShouldBe(1);
         var conflict = results.Single(r => r.StatusCode == HttpStatusCode.Conflict);
@@ -134,17 +135,17 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var (ownerId, _, treatmentId, startsAt) = await SeedOnlineAsync(admin, hour: 12, dayOffset: 26, email: email);
 
         var publicClient = _factory.CreateClient();
-        var created = await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, startsAt, email, horseName: "SammeHäst"));
+        var created = await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, startsAt, email, horseName: "SammeHäst"));
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
         var createdBody = await created.Content.ReadAsStringAsync();
         createdBody.ShouldNotContain(ownerId.ToString());
         createdBody.ShouldNotContain("match", Case.Insensitive);
 
-        var token = ReadVerifyToken();
+        var token = await ReadVerifyTokenAsync();
         var verify = await publicClient.PostAsJsonAsync("/api/public/bookings/verify", new { token });
         verify.StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var owners = await db.Owners.Where(o => o.Email == email).ToListAsync();
         owners.Count.ShouldBe(1);
@@ -161,8 +162,8 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var (_, _, treatmentId, startsAt) = await SeedOnlineAsync(admin, hour: 13, dayOffset: 28);
 
         var publicClient = _factory.CreateClient();
-        var created = await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, startsAt, $"exp-{Guid.NewGuid():N}@ex.se"));
-        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var created = await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, startsAt, $"exp-{Guid.NewGuid():N}@ex.se"));
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -176,7 +177,7 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
             (await job.RunAsync()).ShouldBeGreaterThan(0);
         }
 
-        var again = await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, startsAt, $"exp2-{Guid.NewGuid():N}@ex.se"));
+        var again = await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, startsAt, $"exp2-{Guid.NewGuid():N}@ex.se"));
         again.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
@@ -189,14 +190,14 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
 
         var publicClient = _factory.CreateClient();
         var honey = PublicBody(treatmentId, startsAt, $"bot-{Guid.NewGuid():N}@ex.se") with { Website = "http://spam" };
-        var honeyRes = await publicClient.PostAsJsonAsync("/api/public/bookings", honey);
+        var honeyRes = await publicClient.PostAsJsonAsync("/api/public/default/bookings", honey);
         honeyRes.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var fast = PublicBody(treatmentId, startsAt, $"fast-{Guid.NewGuid():N}@ex.se") with { FormOpenedAt = DateTimeOffset.UtcNow };
-        var fastRes = await publicClient.PostAsJsonAsync("/api/public/bookings", fast);
+        var fastRes = await publicClient.PostAsJsonAsync("/api/public/default/bookings", fast);
         fastRes.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        var real = await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, startsAt, $"real-{Guid.NewGuid():N}@ex.se"));
+        var real = await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, startsAt, $"real-{Guid.NewGuid():N}@ex.se"));
         real.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
@@ -209,15 +210,15 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         var (_, _, _, starts2) = await SeedOnlineAsync(admin, hour: 15, dayOffset: 32, reuseTreatment: treatmentId);
 
         var publicClient = _factory.CreateClient();
-        (await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, startsAt, $"m1-{Guid.NewGuid():N}@ex.se"))).EnsureSuccessStatusCode();
-        var token1 = ReadVerifyToken();
+        (await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, startsAt, $"m1-{Guid.NewGuid():N}@ex.se"))).EnsureSuccessStatusCode();
+        var token1 = await ReadVerifyTokenAsync();
         (await publicClient.PostAsJsonAsync("/api/public/bookings/verify", new { token = token1 })).EnsureSuccessStatusCode();
 
-        (await publicClient.PostAsJsonAsync("/api/public/bookings", PublicBody(treatmentId, starts2, $"m2-{Guid.NewGuid():N}@ex.se"))).EnsureSuccessStatusCode();
-        var token2 = ReadVerifyToken();
+        (await publicClient.PostAsJsonAsync("/api/public/default/bookings", PublicBody(treatmentId, starts2, $"m2-{Guid.NewGuid():N}@ex.se"))).EnsureSuccessStatusCode();
+        var token2 = await ReadVerifyTokenAsync();
         (await publicClient.PostAsJsonAsync("/api/public/bookings/verify", new { token = token2 })).EnsureSuccessStatusCode();
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var tokens = scope.ServiceProvider.GetRequiredService<PublicBookingTokenService>();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var lines = await db.BookingLines.Where(l => l.Source == Equine.Domain.Entities.BookingSource.Widget)
@@ -230,12 +231,20 @@ public class PublicBookingTests : IClassFixture<EquineApiFactory>
         summary.TryGetProperty("horseName", out _).ShouldBeFalse();
     }
 
-    private string ReadVerifyToken()
+    private async Task<string> ReadVerifyTokenAsync()
     {
         var sender = _factory.Services.GetRequiredService<RecordingEmailSender>();
-        var mail = sender.Sent.Last(m => m.Subject.Contains("Bekräfta", StringComparison.OrdinalIgnoreCase));
+        var mail = sender.Sent.LastOrDefault(m => m.Subject.Contains("Bekräfta", StringComparison.OrdinalIgnoreCase));
+        if (mail is null)
+        {
+            using var scope = await _factory.CreateTenantScopeAsync();
+            await scope.ServiceProvider.GetRequiredService<NotificationDispatcher>().DispatchDueAsync();
+            mail = sender.Sent.LastOrDefault(m => m.Subject.Contains("Bekräfta", StringComparison.OrdinalIgnoreCase));
+        }
+        mail.ShouldNotBeNull(
+            $"subjects: {string.Join(" | ", sender.Sent.Select(m => m.Subject))}");
         var marker = "token=";
-        var idx = mail.TextBody.IndexOf(marker, StringComparison.Ordinal);
+        var idx = mail!.TextBody.IndexOf(marker, StringComparison.Ordinal);
         idx.ShouldBeGreaterThan(-1);
         var start = idx + marker.Length;
         var end = mail.TextBody.IndexOfAny([' ', '\r', '\n'], start);
@@ -410,7 +419,7 @@ public class PublicRateLimitTests : IClassFixture<PublicRateLimitFactory>
         HttpResponseMessage? last = null;
         for (var i = 0; i < 4; i++)
         {
-            last = await client.PostAsJsonAsync("/api/public/bookings", new
+            last = await client.PostAsJsonAsync("/api/public/default/bookings", new
             {
                 treatmentId = Guid.CreateVersion7(),
                 startsAt = DateTimeOffset.UtcNow.AddDays(3),

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Equine.Infrastructure.Services;
 using Equine.Infrastructure.Storage;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Infrastructure.Export;
@@ -25,18 +26,22 @@ public sealed class ArchiveExportService : IArchiveExportService
     private readonly EquineDbContext _db;
     private readonly IObjectStorage _storage;
     private readonly IPdfExportService _pdf;
+    private readonly ITenantContext _tenant;
 
-    public ArchiveExportService(EquineDbContext db, IObjectStorage storage, IPdfExportService pdf)
+    public ArchiveExportService(EquineDbContext db, IObjectStorage storage, IPdfExportService pdf, ITenantContext tenant)
     {
         _db = db;
         _storage = storage;
         _pdf = pdf;
+        _tenant = tenant;
     }
 
     public async Task<byte[]> ExportFullArchiveAsync(CancellationToken cancellationToken = default)
     {
-        var owners = await _db.Owners.IgnoreQueryFilters().AsNoTracking().ToListAsync(cancellationToken);
-        var horses = await _db.Horses.IgnoreQueryFilters().AsNoTracking().ToListAsync(cancellationToken);
+        var owners = await _db.Owners.IgnoreQueryFilters().AsNoTracking()
+            .Where(o => o.TenantId == _tenant.TenantId).ToListAsync(cancellationToken);
+        var horses = await _db.Horses.IgnoreQueryFilters().AsNoTracking()
+            .Where(h => h.TenantId == _tenant.TenantId).ToListAsync(cancellationToken);
         var visits = await _db.Visits.AsNoTracking().ToListAsync(cancellationToken);
         var lines = await _db.BookingLines.AsNoTracking().ToListAsync(cancellationToken);
         var journals = await _db.JournalEntries.AsNoTracking().ToListAsync(cancellationToken);
@@ -201,6 +206,7 @@ public sealed class ArchiveExportService : IArchiveExportService
     {
         var horses = await _db.Horses
             .IgnoreQueryFilters()
+            .Where(h => h.TenantId == _tenant.TenantId)
             .Include(h => h.Owner)
             .Include(h => h.JournalEntries).ThenInclude(j => j.Amendments)
             .Include(h => h.JournalEntries).ThenInclude(j => j.Attachments)

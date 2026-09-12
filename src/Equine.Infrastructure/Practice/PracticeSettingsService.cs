@@ -1,5 +1,6 @@
 using Equine.Domain.Entities;
 using Equine.Infrastructure.Services;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -9,11 +10,13 @@ public sealed class PracticeSettingsService
 {
     private readonly EquineDbContext _db;
     private readonly PractitionerOptions _fallback;
+    private readonly ITenantContext _tenant;
 
-    public PracticeSettingsService(EquineDbContext db, IOptions<PractitionerOptions> fallback)
+    public PracticeSettingsService(EquineDbContext db, IOptions<PractitionerOptions> fallback, ITenantContext tenant)
     {
         _db = db;
         _fallback = fallback.Value;
+        _tenant = tenant;
     }
 
     public async Task<PracticeSettings> GetAsync(CancellationToken cancellationToken = default)
@@ -23,8 +26,11 @@ public sealed class PracticeSettingsService
         {
             row = PracticeSettings.CreateDefault();
             ApplyFallback(row);
-            _db.PracticeSettings.Add(row);
-            await _db.SaveChangesAsync(cancellationToken);
+            if (_tenant.HasTenant)
+            {
+                _db.PracticeSettings.Add(row);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
         else if (string.IsNullOrWhiteSpace(row.Email) && !string.IsNullOrWhiteSpace(_fallback.Email))
         {

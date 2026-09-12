@@ -1,9 +1,12 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Equine.Domain.Common;
 using Equine.Domain.Entities;
 using Equine.Infrastructure.Audit;
+using Equine.Infrastructure.Tenancy;
 
 namespace Equine.Infrastructure;
 
@@ -17,11 +20,20 @@ public class EquineDbContext : IdentityDbContext<
     IdentityRoleClaim<Guid>,
     IdentityUserToken<Guid>>
 {
+    private readonly ITenantContext _tenant;
+
     public EquineDbContext(DbContextOptions<EquineDbContext> options)
-        : base(options)
+        : this(options, new TenantContext())
     {
     }
 
+    public EquineDbContext(DbContextOptions<EquineDbContext> options, ITenantContext tenant)
+        : base(options)
+    {
+        _tenant = tenant;
+    }
+
+    public DbSet<Tenant> Tenants { get; set; } = null!;
     public DbSet<AuditEntry> AuditLog { get; set; } = null!;
     public DbSet<Owner> Owners { get; set; } = null!;
     public DbSet<Horse> Horses { get; set; } = null!;
@@ -49,6 +61,15 @@ public class EquineDbContext : IdentityDbContext<
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(EquineDbContext).Assembly);
 
+        builder.Entity<ApplicationUser>(b =>
+        {
+            b.Property(u => u.TenantId).IsRequired();
+            b.HasIndex(u => u.TenantId);
+            b.HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        ApplyTenantQueryFilters(builder);
+
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             foreach (var property in entityType.GetProperties())
@@ -64,6 +85,8 @@ public class EquineDbContext : IdentityDbContext<
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        StampTenantIds();
+
         var auditWriter = new AuditWriter(this);
         var changes = ChangeTracker.Entries()
             .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
@@ -86,6 +109,51 @@ public class EquineDbContext : IdentityDbContext<
         }
         return await base.SaveChangesAsync(cancellationToken);
     }
+
+    private void StampTenantIds()
+    {
+        if (!_tenant.HasTenant) return;
+
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Added) continue;
+            if (entry.Entity is ITenantScoped scoped && scoped.TenantId == Guid.Empty)
+                scoped.AssignTenant(_tenant.TenantId);
+        }
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder builder)
+    {
+        foreach (var entityType in builder.Model.GetEntityTypes())
+        {
+            if (!typeof(ITenantScoped).IsAssignableFrom(entityType.ClrType))
+                continue;
+
+            var method = typeof(SoftDeletableEntity).IsAssignableFrom(entityType.ClrType)
+                ? nameof(SetSoftTenantFilter)
+                : nameof(SetTenantFilter);
+            typeof(EquineDbContext)
+                .GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!
+                .MakeGenericMethod(entityType.ClrType)
+                .Invoke(this, [builder]);
+        }
+    }
+
+    private void SetTenantFilter<T>(ModelBuilder builder) where T : class, ITenantScoped
+    {
+        builder.Entity<T>().HasQueryFilter(Filter<T>());
+        builder.Entity<T>().HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private void SetSoftTenantFilter<T>(ModelBuilder builder) where T : SoftDeletableEntity
+    {
+        builder.Entity<T>().HasQueryFilter(e =>
+            e.DeletedAt == null && _tenant.HasTenant && e.TenantId == _tenant.TenantId);
+        builder.Entity<T>().HasOne<Tenant>().WithMany().HasForeignKey(e => e.TenantId).OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private Expression<Func<T, bool>> Filter<T>() where T : class, ITenantScoped =>
+        e => _tenant.HasTenant && e.TenantId == _tenant.TenantId;
 
     private static string GetEntityId(object entity)
     {

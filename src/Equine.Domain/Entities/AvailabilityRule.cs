@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class AvailabilityRule : Entity
+public class AvailabilityRule : TenantScopedEntity
 {
     public Guid PractitionerId { get; private set; }
     public DayOfWeek DayOfWeek { get; private set; }

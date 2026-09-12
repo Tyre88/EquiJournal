@@ -1,11 +1,13 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class JournalEntry
+public class JournalEntry : ITenantScoped
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid HorseId { get; private set; }
     public Horse Horse { get; private set; } = null!;
     public string OwnerSnapshot { get; private set; } = string.Empty;
@@ -89,6 +91,8 @@ public class JournalEntry
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
+
+    public void AssignTenant(Guid tenantId) => TenantId = TenantAssignment.Apply(TenantId, tenantId);
 
     public void UpdateDraft(
         string anamnes,

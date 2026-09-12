@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class WebPushEndpoint : Entity
+public class WebPushEndpoint : TenantScopedEntity
 {
     public Guid UserId { get; private set; }
     public string Endpoint { get; private set; } = string.Empty;

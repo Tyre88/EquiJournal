@@ -23,7 +23,8 @@ public class TreatmentTypeConfiguration : IEntityTypeConfiguration<TreatmentType
         builder.Property(t => t.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(t => t.UpdatedAt).HasDefaultValueSql("now()");
 
+        builder.HasIndex(t => t.TenantId);
         builder.HasIndex(t => t.Name);
-        builder.HasIndex(t => t.Slug).IsUnique();
+        builder.HasIndex(t => new { t.TenantId, t.Slug }).IsUnique();
     }
 }

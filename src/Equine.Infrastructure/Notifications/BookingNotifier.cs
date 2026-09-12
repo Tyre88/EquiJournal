@@ -1,6 +1,7 @@
 using System.Globalization;
 using Equine.Domain.Entities;
 using Equine.Infrastructure.Practice;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Tokens;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ public sealed class BookingNotifier
     private readonly PracticeSettingsService _practice;
     private readonly PublicBookingTokenService _tokens;
     private readonly EquineDbContext _db;
+    private readonly ITenantContext _tenant;
 
     public BookingNotifier(
         INotificationScheduler scheduler,
@@ -22,7 +24,8 @@ public sealed class BookingNotifier
         WidgetSettingsService widget,
         PracticeSettingsService practice,
         PublicBookingTokenService tokens,
-        EquineDbContext db)
+        EquineDbContext db,
+        ITenantContext tenant)
     {
         _scheduler = scheduler;
         _settings = settings;
@@ -30,6 +33,7 @@ public sealed class BookingNotifier
         _practice = practice;
         _tokens = tokens;
         _db = db;
+        _tenant = tenant;
     }
 
     public async Task OnWidgetRequestedAsync(BookingLine line, string ownerEmail, string ownerName, CancellationToken cancellationToken = default)
@@ -152,11 +156,12 @@ public sealed class BookingNotifier
         var zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
         var local = TimeZoneInfo.ConvertTime(starts, zone);
         var token = _tokens.Protect(line.Id, starts.AddDays(7), PublicBookingTokenService.ManagePurpose);
-        var manage = $"{widget.PublicBaseUrl}/widget/b/{Uri.EscapeDataString(token)}";
+        var slug = _tenant.Slug ?? "default";
+        var manage = $"{widget.PublicBaseUrl}/widget/{slug}/b/{Uri.EscapeDataString(token)}";
         if (line.EmailVerifiedAt is null)
         {
             var verify = _tokens.Protect(line.Id, DateTimeOffset.UtcNow.AddMinutes(widget.VerificationWindowMinutes), PublicBookingTokenService.VerifyPurpose);
-            manage = $"{widget.PublicBaseUrl}/widget/verify?token={Uri.EscapeDataString(verify)}";
+            manage = $"{widget.PublicBaseUrl}/widget/{slug}/verify?token={Uri.EscapeDataString(verify)}";
         }
 
         var loc = visit.Location;
@@ -178,8 +183,8 @@ public sealed class BookingNotifier
             ["kliniknamn"] = practice.Clinic,
             ["telefon"] = practice.Phone,
             ["referens"] = line.PublicReference ?? "",
-            ["portalänk"] = $"{widget.PublicBaseUrl}/portal/",
-            ["portallank"] = $"{widget.PublicBaseUrl}/portal/"
+            ["portalänk"] = $"{widget.PublicBaseUrl}/portal/{slug}",
+            ["portallank"] = $"{widget.PublicBaseUrl}/portal/{slug}"
         };
     }
 }

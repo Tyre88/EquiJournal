@@ -57,6 +57,7 @@ public class DatabaseIntegrationTest : IAsyncLifetime
         Assert.Contains(tables, t => t.Contains("user", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(tables, t => t.Contains("role", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(tables, t => t.Contains("audit_log", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(tables, t => t.Contains("tenants", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -84,9 +85,14 @@ public class DatabaseIntegrationTest : IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
+        var tenant = new Equine.Domain.Entities.Tenant("Test", "default");
+        context.Tenants.Add(tenant);
+        await context.SaveChangesAsync();
+
         var user = new ApplicationUser
         {
             Id = Guid.CreateVersion7(),
+            TenantId = tenant.Id,
             Email = "test@example.se",
             UserName = "test@example.se",
             EmailConfirmed = true,

@@ -17,5 +17,6 @@ public class WidgetSettingsConfiguration : IEntityTypeConfiguration<WidgetSettin
         builder.Property(s => s.ContactPhone).HasMaxLength(50);
         builder.Property(s => s.ContactEmail).HasMaxLength(255);
         builder.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
+        builder.HasIndex(s => s.TenantId).IsUnique();
     }
 }

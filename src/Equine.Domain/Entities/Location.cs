@@ -3,7 +3,7 @@ using Equine.Domain.Locations;
 
 namespace Equine.Domain.Entities;
 
-public class Location : Entity
+public class Location : TenantScopedEntity
 {
     public LocationType Type { get; private set; }
     public string Name { get; private set; } = string.Empty;

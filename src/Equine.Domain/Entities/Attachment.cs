@@ -1,8 +1,11 @@
+using Equine.Domain.Common;
+
 namespace Equine.Domain.Entities;
 
-public class Attachment
+public class Attachment : ITenantScoped
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid JournalEntryId { get; private set; }
     public JournalEntry JournalEntry { get; private set; } = null!;
     public string StorageKey { get; private set; } = string.Empty;
@@ -33,4 +36,6 @@ public class Attachment
         CreatedBy = createdBy == default ? Guid.CreateVersion7() : createdBy;
         CreatedAt = DateTimeOffset.UtcNow;
     }
+
+    public void AssignTenant(Guid tenantId) => TenantId = TenantAssignment.Apply(TenantId, tenantId);
 }

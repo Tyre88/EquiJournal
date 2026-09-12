@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Equine.Infrastructure.Audit;
 using Equine.Infrastructure.Services;
 using Equine.Infrastructure.Storage;
+using Equine.Infrastructure.Tenancy;
 
 namespace Equine.Infrastructure;
 
@@ -26,6 +27,8 @@ public static class ServiceCollectionExtensions
                     errorCodesToAdd: null);
             }));
 
+        services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<TenantProvisioningService>();
         services.AddScoped<IAuditWriter, Audit.AuditWriter>();
         services.Configure<PractitionerOptions>(configuration.GetSection("Practitioner"));
         services.AddScoped<IPdfExportService, PdfExportService>();

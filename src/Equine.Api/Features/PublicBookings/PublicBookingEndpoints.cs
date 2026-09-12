@@ -9,7 +9,7 @@ public static class PublicBookingEndpoints
 {
     public static IEndpointRouteBuilder MapPublicBookingEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/public")
+        var group = app.MapGroup("/api/public/{slug}")
             .RequireCors("Public")
             .AllowAnonymous();
 
@@ -58,7 +58,11 @@ public static class PublicBookingEndpoints
             }
         }).WithName("PublicCreateBooking").RequireRateLimiting("public-book");
 
-        group.MapPost("/bookings/verify", async (
+        var tokens = app.MapGroup("/api/public")
+            .RequireCors("Public")
+            .AllowAnonymous();
+
+        tokens.MapPost("/bookings/verify", async (
             PublicVerifyRequest request,
             PublicBookingService bookings,
             HttpContext http,
@@ -75,13 +79,13 @@ public static class PublicBookingEndpoints
             }
         }).WithName("PublicVerifyBooking").RequireRateLimiting("public-read");
 
-        group.MapGet("/bookings/{token}", async (string token, PublicBookingService bookings, CancellationToken ct) =>
+        tokens.MapGet("/bookings/{token}", async (string token, PublicBookingService bookings, CancellationToken ct) =>
         {
             var summary = await bookings.GetSummaryAsync(token, ct);
             return summary is null ? TokenMissing() : Results.Ok(summary);
         }).WithName("PublicGetBooking").RequireRateLimiting("public-read");
 
-        group.MapPost("/bookings/{token}/cancel", async (
+        tokens.MapPost("/bookings/{token}/cancel", async (
             string token,
             PublicCancelRequest? request,
             PublicBookingService bookings,
@@ -98,7 +102,7 @@ public static class PublicBookingEndpoints
             }
         }).WithName("PublicCancelBooking").RequireRateLimiting("public-read");
 
-        group.MapPost("/bookings/{token}/reschedule", async (
+        tokens.MapPost("/bookings/{token}/reschedule", async (
             string token,
             PublicRescheduleRequest request,
             PublicBookingService bookings,

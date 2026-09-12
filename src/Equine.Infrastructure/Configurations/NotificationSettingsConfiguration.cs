@@ -12,5 +12,6 @@ public class NotificationSettingsConfiguration : IEntityTypeConfiguration<Notifi
         builder.HasKey(s => s.Id);
         builder.Property(s => s.EnabledJson).HasColumnType("jsonb").IsRequired();
         builder.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
+        builder.HasIndex(s => s.TenantId).IsUnique();
     }
 }

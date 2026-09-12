@@ -23,9 +23,25 @@ export interface JournalDto {
   performedAt: string;
 }
 
+export interface TenantDto {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+}
+
 export const appApiPaths = {
   owners: '/api/app/owners',
   horses: '/api/app/horses',
   journals: '/api/app/journals',
-  treatmentTypes: '/api/app/treatment-types'
+  treatmentTypes: '/api/app/treatment-types',
+  me: '/api/app/me'
+} as const;
+
+export const publicApiPaths = {
+  register: '/api/public/tenants/register',
+  treatments: (slug: string) => `/api/public/${slug}/treatments`,
+  slots: (slug: string) => `/api/public/${slug}/slots`,
+  bookings: (slug: string) => `/api/public/${slug}/bookings`,
+  magicLink: (slug: string) => `/api/public/${slug}/auth/magic-link`
 } as const;

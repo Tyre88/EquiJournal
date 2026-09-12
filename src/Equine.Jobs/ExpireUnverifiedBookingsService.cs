@@ -2,6 +2,7 @@ using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Audit;
 using Equine.Infrastructure.Scheduling;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,22 +16,43 @@ public sealed class ExpireUnverifiedBookingsService
     private readonly IAuditWriter _audit;
     private readonly ISlotCache _cache;
     private readonly ILogger<ExpireUnverifiedBookingsService> _log;
+    private readonly ITenantContext _tenant;
+    private readonly TenantProvisioningService _provisioning;
 
     public ExpireUnverifiedBookingsService(
         EquineDbContext db,
         WidgetSettingsService settings,
         IAuditWriter audit,
         ISlotCache cache,
-        ILogger<ExpireUnverifiedBookingsService> log)
+        ILogger<ExpireUnverifiedBookingsService> log,
+        ITenantContext tenant,
+        TenantProvisioningService provisioning)
     {
         _db = db;
         _settings = settings;
         _audit = audit;
         _cache = cache;
         _log = log;
+        _tenant = tenant;
+        _provisioning = provisioning;
     }
 
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_tenant.HasTenant)
+        {
+            var total = 0;
+            await _provisioning.ForEachActiveAsync(async (_, ct) =>
+            {
+                total += await RunForCurrentTenantAsync(ct);
+            }, cancellationToken);
+            return total;
+        }
+
+        return await RunForCurrentTenantAsync(cancellationToken);
+    }
+
+    private async Task<int> RunForCurrentTenantAsync(CancellationToken cancellationToken)
     {
         var settings = await _settings.GetAsync(cancellationToken);
         var cutoff = DateTimeOffset.UtcNow.AddMinutes(-settings.VerificationWindowMinutes);

@@ -1,5 +1,6 @@
 using Equine.Domain.Entities;
 using Equine.Infrastructure;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,11 +91,11 @@ public static class OwnerEndpoints
             return Results.Ok();
         }).WithName("UpdateOwner");
 
-        group.MapPost("/{id:guid}/restore", async (Guid id, EquineDbContext db) =>
+        group.MapPost("/{id:guid}/restore", async (Guid id, EquineDbContext db, ITenantContext tenant) =>
         {
             var owner = await db.Owners
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(o => o.Id == id);
+                .FirstOrDefaultAsync(o => o.Id == id && o.TenantId == tenant.TenantId);
 
             if (owner is null) return Results.NotFound();
             if (!owner.IsDeleted) return Results.Conflict("Owner is not archived.");

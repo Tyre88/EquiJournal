@@ -4,6 +4,7 @@ using Equine.Domain.Notifications;
 using Equine.Infrastructure.Email;
 using Equine.Infrastructure.Practice;
 using Equine.Infrastructure.Sms;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Infrastructure.Notifications;
@@ -16,6 +17,8 @@ public sealed class NotificationDispatcher
     private readonly NotificationSettingsService _settings;
     private readonly PracticeSettingsService _practice;
     private readonly IWebPushSender _push;
+    private readonly ITenantContext _tenant;
+    private readonly TenantProvisioningService _provisioning;
 
     public NotificationDispatcher(
         EquineDbContext db,
@@ -23,7 +26,9 @@ public sealed class NotificationDispatcher
         ISmsSender sms,
         NotificationSettingsService settings,
         PracticeSettingsService practice,
-        IWebPushSender push)
+        IWebPushSender push,
+        ITenantContext tenant,
+        TenantProvisioningService provisioning)
     {
         _db = db;
         _email = email;
@@ -31,9 +36,26 @@ public sealed class NotificationDispatcher
         _settings = settings;
         _practice = practice;
         _push = push;
+        _tenant = tenant;
+        _provisioning = provisioning;
     }
 
     public async Task<int> DispatchDueAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_tenant.HasTenant)
+        {
+            var total = 0;
+            await _provisioning.ForEachActiveAsync(async (_, ct) =>
+            {
+                total += await DispatchDueForCurrentTenantAsync(ct);
+            }, cancellationToken);
+            return total;
+        }
+
+        return await DispatchDueForCurrentTenantAsync(cancellationToken);
+    }
+
+    private async Task<int> DispatchDueForCurrentTenantAsync(CancellationToken cancellationToken)
     {
         var settings = await _settings.GetAsync(cancellationToken);
         var dueIds = await ClaimDueIdsAsync(cancellationToken);
@@ -201,22 +223,36 @@ public sealed class NotificationDispatcher
 
     private async Task<List<Guid>> ClaimDueIdsAsync(CancellationToken cancellationToken)
     {
+        if (!_tenant.HasTenant)
+            return [];
+
+        var tenantId = _tenant.TenantId;
         var strategy = _db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
             await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
-            var ids = await _db.Database.SqlQueryRaw<Guid>("""
+            await _db.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE scheduled_notifications
                 SET "Status" = 'Sending'
                 WHERE "Id" IN (
                     SELECT "Id" FROM scheduled_notifications
-                    WHERE "Status" = 'Pending' AND "ScheduledFor" <= now()
+                    WHERE "TenantId" = {tenantId}
+                      AND (
+                        ("Status" = 'Pending' AND "ScheduledFor" <= now())
+                        OR ("Status" = 'Sending' AND "SentAt" IS NULL)
+                      )
                     ORDER BY "ScheduledFor"
                     FOR UPDATE SKIP LOCKED
                     LIMIT 25
                 )
-                RETURNING "Id" AS "Value"
-                """).ToListAsync(cancellationToken);
+                """, cancellationToken);
+
+            var ids = await _db.ScheduledNotifications
+                .Where(n => n.Status == NotificationDeliveryStatus.Sending && n.SentAt == null)
+                .OrderBy(n => n.ScheduledFor)
+                .Select(n => n.Id)
+                .Take(25)
+                .ToListAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
             return ids;
         });

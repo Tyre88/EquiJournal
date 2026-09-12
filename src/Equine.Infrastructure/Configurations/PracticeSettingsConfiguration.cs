@@ -27,5 +27,6 @@ public class PracticeSettingsConfiguration : IEntityTypeConfiguration<PracticeSe
                 v => v ?? "",
                 convertsNulls: true));
         builder.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
+        builder.HasIndex(s => s.TenantId).IsUnique();
     }
 }

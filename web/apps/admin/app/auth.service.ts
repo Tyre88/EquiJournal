@@ -29,6 +29,7 @@ interface User {
   roles: string[];
   twoFactorEnabled: boolean;
   isFirstLogin: boolean;
+  tenant?: { id: string; name: string; slug: string; plan: string };
 }
 
 const ACCESS_KEY = 'auth:access_token';
@@ -53,6 +54,15 @@ export class AuthService {
 
   constructor() {
     queueMicrotask(() => this.restoreSession());
+  }
+
+  register(body: { name: string; displayName: string; email: string; password: string }): Observable<void> {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/api/public/tenants/register`, body).pipe(
+      switchMap(response => {
+        this.storeTokens(response);
+        return this.fetchUser().pipe(map(() => void 0));
+      })
+    );
   }
 
   login(email: string, password: string): Observable<{ requiresTwoFactor: boolean; canProceed?: boolean }> {

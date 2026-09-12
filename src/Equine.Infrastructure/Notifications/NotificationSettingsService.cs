@@ -1,4 +1,5 @@
 using Equine.Domain.Entities;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Infrastructure.Notifications;
@@ -6,8 +7,13 @@ namespace Equine.Infrastructure.Notifications;
 public sealed class NotificationSettingsService
 {
     private readonly EquineDbContext _db;
+    private readonly ITenantContext _tenant;
 
-    public NotificationSettingsService(EquineDbContext db) => _db = db;
+    public NotificationSettingsService(EquineDbContext db, ITenantContext tenant)
+    {
+        _db = db;
+        _tenant = tenant;
+    }
 
     public async Task<NotificationSettings> GetAsync(CancellationToken cancellationToken = default)
     {
@@ -15,8 +21,11 @@ public sealed class NotificationSettingsService
         if (row is null)
         {
             row = NotificationSettings.CreateDefault();
-            _db.NotificationSettings.Add(row);
-            await _db.SaveChangesAsync(cancellationToken);
+            if (_tenant.HasTenant)
+            {
+                _db.NotificationSettings.Add(row);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         return row;

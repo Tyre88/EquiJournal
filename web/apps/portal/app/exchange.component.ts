@@ -15,17 +15,18 @@ export class ExchangeComponent implements OnInit {
 
   ngOnInit(): void {
     const token = this.route.snapshot.queryParamMap.get('token');
+    const slug = this.route.snapshot.paramMap.get('slug') ?? '';
     if (!token) {
-      void this.router.navigateByUrl('/login');
+      void this.router.navigateByUrl(slug ? `/${slug}/login` : '/');
       return;
     }
     this.http.post<{ accessToken: string }>(`${environment.apiUrl}/api/public/auth/magic-link/exchange`, { token })
       .subscribe({
         next: res => {
           localStorage.setItem('portal:token', res.accessToken);
-          void this.router.navigateByUrl('/');
+          void this.router.navigateByUrl(slug ? `/${slug}` : '/');
         },
-        error: () => void this.router.navigateByUrl('/login')
+        error: () => void this.router.navigateByUrl(slug ? `/${slug}/login` : '/')
       });
   }
 }

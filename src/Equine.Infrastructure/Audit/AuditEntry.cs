@@ -1,8 +1,11 @@
+using Equine.Domain.Common;
+
 namespace Equine.Infrastructure.Audit;
 
-public class AuditEntry
+public class AuditEntry : ITenantScoped
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string? ActorId { get; set; }
     public string Action { get; set; } = string.Empty;
     public string EntityType { get; set; } = string.Empty;
@@ -10,6 +13,8 @@ public class AuditEntry
     public string? Before { get; set; }
     public string? After { get; set; }
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
+
+    public void AssignTenant(Guid tenantId) => TenantId = TenantAssignment.Apply(TenantId, tenantId);
 }
 
 public interface IAuditWriter

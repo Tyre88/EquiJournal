@@ -17,7 +17,8 @@ public class ZoneConfiguration : IEntityTypeConfiguration<Zone>
         builder.Property(z => z.EffectiveGeometryJson).HasColumnType("jsonb");
         builder.Property(z => z.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(z => z.UpdatedAt).HasDefaultValueSql("now()");
-        builder.HasIndex(z => z.Name).IsUnique();
-        builder.HasIndex(z => z.IsFallback).IsUnique().HasFilter("\"IsFallback\" = TRUE");
+        builder.HasIndex(z => z.TenantId);
+        builder.HasIndex(z => new { z.TenantId, z.Name }).IsUnique();
+        builder.HasIndex(z => z.TenantId).IsUnique().HasFilter("\"IsFallback\" = TRUE").HasDatabaseName("ix_zones_fallback_unique");
     }
 }

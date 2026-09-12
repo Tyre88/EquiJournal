@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Equine.Domain.Entities;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Infrastructure.Import;
@@ -23,8 +24,13 @@ public sealed class HistoricImportReport
 public sealed class HistoricImportService
 {
     private readonly EquineDbContext _db;
+    private readonly ITenantContext _tenant;
 
-    public HistoricImportService(EquineDbContext db) => _db = db;
+    public HistoricImportService(EquineDbContext db, ITenantContext tenant)
+    {
+        _db = db;
+        _tenant = tenant;
+    }
 
     public async Task<HistoricImportReport> ImportAsync(
         IReadOnlyList<IReadOnlyDictionary<string, string>> owners,
@@ -35,6 +41,19 @@ public sealed class HistoricImportService
         Guid? createdBy = null,
         CancellationToken cancellationToken = default)
     {
+        if (!_tenant.HasTenant)
+        {
+            var existing = await _db.Tenants.OrderBy(t => t.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+            if (existing is null)
+            {
+                existing = new Tenant("Import", "default");
+                _db.Tenants.Add(existing);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+
+            _tenant.SetTenant(existing.Id, existing.Slug);
+        }
+
         var report = new HistoricImportReport { DryRun = !commit };
         report.OwnersIn = owners.Count;
         report.HorsesIn = horses.Count;

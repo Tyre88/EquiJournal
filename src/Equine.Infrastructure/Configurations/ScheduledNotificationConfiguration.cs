@@ -18,7 +18,8 @@ public class ScheduledNotificationConfiguration : IEntityTypeConfiguration<Sched
         builder.Property(n => n.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(n => n.LastError).HasMaxLength(2000);
         builder.Property(n => n.ProviderMessageId).HasMaxLength(200);
-        builder.HasIndex(n => new { n.Type, n.RelatedEntityId, n.Channel })
+        builder.HasIndex(n => n.TenantId);
+        builder.HasIndex(n => new { n.TenantId, n.Type, n.RelatedEntityId, n.Channel })
             .IsUnique()
             .HasFilter("\"Status\" = 'Pending'")
             .HasDatabaseName("ix_scheduled_notifications_pending_unique");

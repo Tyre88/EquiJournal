@@ -20,6 +20,9 @@ using Equine.Api.Features.Reports;
 using Equine.Api.Features.Search;
 using Equine.Api.Features.Audit;
 using Equine.Api.Features.Export;
+using Equine.Api.Features.Tenants;
+using Equine.Api.Tenancy;
+using Equine.Infrastructure.Tenancy;
 using Equine.Api.Health;
 using Equine.Infrastructure.Storage;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -238,11 +241,12 @@ if (app.Environment.IsProduction())
     app.UseHttpsRedirection();
 }
 app.UseMiddleware<Equine.Api.Middleware.SecurityHeadersMiddleware>();
-app.UseMiddleware<Equine.Api.Middleware.WidgetCspMiddleware>();
 app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseCors("App");
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseMiddleware<Equine.Api.Middleware.WidgetCspMiddleware>();
 app.UseAuthorization();
 
 // ── Health checks ──
@@ -264,6 +268,7 @@ publicGroup.MapGet("/ping", () => Results.Json(new { ping = "pong" }))
     .RequireCors("Public")
     .RequireRateLimiting("public-read");
 
+app.MapTenantRegistrationEndpoints();
 app.MapPublicBookingEndpoints();
 app.MapWidgetSettingsEndpoints();
 app.MapPracticeSettingsEndpoints();
@@ -311,6 +316,9 @@ appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> 
         return Results.Unauthorized();
     }
 
+    var db = context.RequestServices.GetRequiredService<EquineDbContext>();
+    var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == user.TenantId);
+
     return Results.Json(new
     {
         id = user.Id.ToString(),
@@ -318,7 +326,14 @@ appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> 
         displayName = user.DisplayName,
         roles = (await userManager.GetRolesAsync(user)).ToArray(),
         twoFactorEnabled = user.TwoFactorEnabled,
-        isFirstLogin = user.IsFirstLogin
+        isFirstLogin = user.IsFirstLogin,
+        tenant = tenant is null ? null : new
+        {
+            id = tenant.Id,
+            name = tenant.Name,
+            slug = tenant.Slug,
+            plan = tenant.Plan.ToString()
+        }
     });
 }).RequireAuthorization();
 
@@ -400,35 +415,31 @@ async Task EnsureDatabaseExists(WebApplication app)
         await EnableExtensions(context);
     }
 
+    await TenancySchemaUpgrade.ApplyAsync(context);
     await EnsureZoneGeometryColumns(context);
-    await SeedFallbackZone(context);
-    await SeedWidgetSettings(context);
-    await SeedNotificationFoundation(context);
+    await EnsureDefaultTenant(scope.ServiceProvider);
     await BackfillTreatmentSlugs(context);
     await BackfillAnatomyFindingOptions(context);
 }
 
-async Task SeedNotificationFoundation(EquineDbContext context)
+async Task EnsureDefaultTenant(IServiceProvider services)
 {
-    if (!await context.PracticeSettings.AnyAsync())
-    {
-        context.PracticeSettings.Add(Equine.Domain.Entities.PracticeSettings.CreateDefault());
-        await context.SaveChangesAsync();
-    }
-    if (!await context.NotificationSettings.AnyAsync())
-    {
-        context.NotificationSettings.Add(Equine.Domain.Entities.NotificationSettings.CreateDefault());
-        await context.SaveChangesAsync();
-    }
-    await Equine.Infrastructure.Notifications.NotificationTemplateSeeder.SeedAsync(context);
-}
+    var context = services.GetRequiredService<EquineDbContext>();
+    var tenantContext = services.GetRequiredService<ITenantContext>();
+    var provision = services.GetRequiredService<TenantProvisioningService>();
+    var configuration = services.GetRequiredService<IConfiguration>();
 
-async Task SeedWidgetSettings(EquineDbContext context)
-{
-    if (await context.WidgetSettings.AnyAsync())
-        return;
-    context.WidgetSettings.Add(Equine.Domain.Entities.WidgetSettings.CreateDefault());
-    await context.SaveChangesAsync();
+    var tenant = await context.Tenants.OrderBy(t => t.CreatedAt).FirstOrDefaultAsync();
+    if (tenant is null)
+    {
+        var name = configuration["Practitioner:Clinic"] ?? "HästJournal";
+        tenant = new Equine.Domain.Entities.Tenant(name, "default");
+        context.Tenants.Add(tenant);
+        await context.SaveChangesAsync();
+    }
+
+    tenantContext.SetTenant(tenant.Id, tenant.Slug);
+    await provision.SeedDefaultsAsync();
 }
 
 async Task BackfillTreatmentSlugs(EquineDbContext context)
@@ -506,25 +517,6 @@ async Task EnsureZoneGeometryColumns(EquineDbContext context)
     ");
 }
 
-async Task SeedFallbackZone(EquineDbContext context)
-{
-    if (await context.Zones.AnyAsync(z => z.IsFallback))
-        return;
-
-    try
-    {
-        context.Zones.Add(new Equine.Domain.Entities.Zone(
-            Equine.Domain.Locations.ZoneResolver.FallbackZoneName,
-            travelBufferMinutes: 0,
-            isFallback: true));
-        await context.SaveChangesAsync();
-    }
-    catch (DbUpdateException)
-    {
-        context.ChangeTracker.Clear();
-    }
-}
-
 // ── Admin User Seeder ──
 async Task SeedAdminUser(WebApplication app)
 {
@@ -550,9 +542,12 @@ async Task SeedAdminUser(WebApplication app)
     if (adminUser is not null)
         return;
 
+    var tenant = await context.Tenants.OrderBy(t => t.CreatedAt).FirstAsync();
+
     adminUser = new ApplicationUser
     {
         Id = Guid.CreateVersion7(),
+        TenantId = tenant.Id,
         Email = adminEmail,
         UserName = adminEmail,
         DisplayName = adminDisplayName,

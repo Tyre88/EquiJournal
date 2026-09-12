@@ -93,7 +93,7 @@ public class BookingWorkflowTests : IClassFixture<EquineApiFactory>
         var slotList = await slots.Content.ReadFromJsonAsync<JsonElement>(Json);
         slotList.GetArrayLength().ShouldBeGreaterThan(0);
 
-        using var scope = _factory.Services.CreateScope();
+        using var scope = await _factory.CreateTenantScopeAsync();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
         var actions = await db.AuditLog.Select(a => a.Action).ToListAsync();
         actions.ShouldContain("BOOKING_CREATE");

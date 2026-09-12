@@ -16,8 +16,8 @@ These are a **security boundary** — data leaks between surfaces must be imposs
 
 Two top-level route groups with separate middleware pipelines:
 
-- `/api/public/*` — Anonymous, rate-limited (50 req/15s per window), CORS-controlled. Never returns owner names, horse names, or reasons for slot unavailability.
-- `/api/app/*` — Requires JWT authentication. Anonymous access is opt-in per endpoint via `[AllowAnonymous]`.
+- `/api/public/{slug}/*` — Anonymous, rate-limited, CORS-controlled. The slug selects the practice. Token verify/manage and webhooks stay slug-less and resolve tenant from the record. Never returns owner names, horse names, or reasons for slot unavailability.
+- `/api/app/*` — Requires JWT authentication with a `tenantId` claim. Anonymous access is opt-in per endpoint via `[AllowAnonymous]`.
 
 ## Consequences
 

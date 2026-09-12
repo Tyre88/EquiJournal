@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { environment } from '../environments/environment';
 
 @Component({
@@ -21,11 +22,13 @@ import { environment } from '../environments/environment';
 })
 export class LoginComponent {
   private http = inject(HttpClient);
+  private route = inject(ActivatedRoute);
   email = '';
   sent = signal(false);
 
   send(): void {
-    this.http.post(`${environment.apiUrl}/api/public/auth/magic-link`, { email: this.email }).subscribe({
+    const slug = this.route.snapshot.paramMap.get('slug') ?? '';
+    this.http.post(`${environment.apiUrl}/api/public/${encodeURIComponent(slug)}/auth/magic-link`, { email: this.email }).subscribe({
       next: () => this.sent.set(true),
       error: () => this.sent.set(true)
     });

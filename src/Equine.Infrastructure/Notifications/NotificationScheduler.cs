@@ -12,18 +12,18 @@ public sealed class NotificationScheduler : INotificationScheduler
     private readonly EquineDbContext _db;
     private readonly NotificationSettingsService _settings;
     private readonly IHostEnvironment _env;
-    private readonly IServiceScopeFactory _scopes;
+    private readonly IServiceProvider _services;
 
     public NotificationScheduler(
         EquineDbContext db,
         NotificationSettingsService settings,
         IHostEnvironment env,
-        IServiceScopeFactory scopes)
+        IServiceProvider services)
     {
         _db = db;
         _settings = settings;
         _env = env;
-        _scopes = scopes;
+        _services = services;
     }
 
     public async Task EnqueueAsync(
@@ -82,18 +82,7 @@ public sealed class NotificationScheduler : INotificationScheduler
         await _db.SaveChangesAsync(cancellationToken);
 
         if (_env.IsEnvironment("Testing"))
-        {
-            try
-            {
-                await using var scope = _scopes.CreateAsyncScope();
-                var dispatcher = scope.ServiceProvider.GetRequiredService<NotificationDispatcher>();
-                await dispatcher.DispatchDueAsync(cancellationToken);
-            }
-            catch (Exception)
-            {
-                // Booking/API already committed; Hangfire is the production path.
-            }
-        }
+            await _services.GetRequiredService<NotificationDispatcher>().DispatchDueAsync(cancellationToken);
     }
 
     public async Task CancelPendingAsync(NotificationType type, Guid relatedEntityId, CancellationToken cancellationToken = default)

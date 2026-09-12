@@ -3,7 +3,7 @@ using Equine.Domain.Locations;
 
 namespace Equine.Domain.Entities;
 
-public class Zone : Entity
+public class Zone : TenantScopedEntity
 {
     public string Name { get; private set; } = string.Empty;
     public string PostcodesJson { get; private set; } = "[]";

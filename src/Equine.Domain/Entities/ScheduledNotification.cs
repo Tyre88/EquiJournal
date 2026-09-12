@@ -2,7 +2,7 @@ using Equine.Domain.Common;
 
 namespace Equine.Domain.Entities;
 
-public class ScheduledNotification : Entity
+public class ScheduledNotification : TenantScopedEntity
 {
     public NotificationType Type { get; private set; }
     public NotificationChannel Channel { get; private set; }
