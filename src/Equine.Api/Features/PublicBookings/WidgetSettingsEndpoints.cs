@@ -10,9 +10,10 @@ public static class WidgetSettingsEndpoints
     {
         var group = app.MapGroup("/api/app/widget-settings").RequireAuthorization("CanAdminister");
 
-        group.MapGet("/", async (WidgetSettingsService settings, EquineDbContext db, CancellationToken ct) =>
+        group.MapGet("/", async (HttpContext http, WidgetSettingsService settings, EquineDbContext db, CancellationToken ct) =>
         {
             var s = await settings.GetAsync(ct);
+            var publicBaseUrl = ResolvePublicBaseUrl(s.PublicBaseUrl, http.Request);
             var treatments = await db.TreatmentTypes
                 .OrderBy(t => t.Name)
                 .Select(t => new { t.Id, t.Name, t.Slug, t.BookableOnline, t.RequiresApproval, t.Status })
@@ -25,17 +26,17 @@ public static class WidgetSettingsEndpoints
                 s.PrivacyPolicyUrl,
                 s.VerificationWindowMinutes,
                 s.CancellationNoticeHours,
-                s.PublicBaseUrl,
+                publicBaseUrl,
                 s.ContactPhone,
                 s.ContactEmail,
                 treatments,
-                embedSnippet = EmbedSnippet(s.PublicBaseUrl),
+                embedSnippet = EmbedSnippet(publicBaseUrl),
                 treatmentSnippets = treatments.Where(t => !string.IsNullOrWhiteSpace(t.Slug))
-                    .Select(t => new { t.Id, t.Name, t.Slug, snippet = EmbedSnippet(s.PublicBaseUrl, t.Slug) })
+                    .Select(t => new { t.Id, t.Name, t.Slug, snippet = EmbedSnippet(publicBaseUrl, t.Slug) })
             });
         }).WithName("GetWidgetSettings");
 
-        group.MapPut("/", async (WidgetSettingsUpdateRequest request, WidgetSettingsService settings, CancellationToken ct) =>
+        group.MapPut("/", async (HttpContext http, WidgetSettingsUpdateRequest request, WidgetSettingsService settings, CancellationToken ct) =>
         {
             var origins = (request.AllowedOrigins ?? [])
                 .Select(o => o.Trim().TrimEnd('/'))
@@ -54,6 +55,7 @@ public static class WidgetSettingsEndpoints
                 request.ContactPhone,
                 request.ContactEmail,
                 ct);
+            var publicBaseUrl = ResolvePublicBaseUrl(s.PublicBaseUrl, http.Request);
             return Results.Ok(new
             {
                 allowedOrigins = s.GetAllowedOrigins(),
@@ -62,14 +64,30 @@ public static class WidgetSettingsEndpoints
                 s.PrivacyPolicyUrl,
                 s.VerificationWindowMinutes,
                 s.CancellationNoticeHours,
-                s.PublicBaseUrl,
+                publicBaseUrl,
                 s.ContactPhone,
                 s.ContactEmail,
-                embedSnippet = EmbedSnippet(s.PublicBaseUrl)
+                embedSnippet = EmbedSnippet(publicBaseUrl)
             });
         }).WithName("UpdateWidgetSettings");
 
         return app;
+    }
+
+    internal static string ResolvePublicBaseUrl(string? stored, HttpRequest request)
+    {
+        if (!IsUnsetOrLoopback(stored))
+            return stored!.TrimEnd('/');
+        return $"{request.Scheme}://{request.Host.Value}".TrimEnd('/');
+    }
+
+    internal static bool IsUnsetOrLoopback(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return true;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return true;
+        return uri.IsLoopback;
     }
 
     public static string EmbedSnippet(string publicBaseUrl, string? treatmentSlug = null)

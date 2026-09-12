@@ -137,13 +137,16 @@ export class WidgetSettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.api.get<WidgetSettings>('/api/app/widget-settings').subscribe({
-      next: (value) => {
-        this.s.set(value);
-        this.originsText = (value.allowedOrigins ?? []).join('\n');
-        this.setPreview((value.publicBaseUrl || '').replace(/\/$/, '') + '/widget/');
-      },
+      next: (value) => this.applySettings(value),
       error: () => this.error.set('Kunde inte ladda inställningarna.')
     });
+  }
+
+  private applySettings(value: WidgetSettings): void {
+    const resolved = resolveHost(value);
+    this.s.set(resolved);
+    this.originsText = (resolved.allowedOrigins ?? []).join('\n');
+    this.setPreview(resolved.publicBaseUrl.replace(/\/$/, '') + '/widget/');
   }
 
   private setPreview(url: string): void {
@@ -157,9 +160,7 @@ export class WidgetSettingsComponent implements OnInit {
     const allowedOrigins = this.originsText.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
     this.api.put<WidgetSettings>('/api/app/widget-settings', { ...current, allowedOrigins }).subscribe({
       next: (value) => {
-        this.s.set({ ...current, ...value, treatments: current.treatments });
-        this.originsText = (value.allowedOrigins ?? []).join('\n');
-        this.setPreview((value.publicBaseUrl || '').replace(/\/$/, '') + '/widget/');
+        this.applySettings({ ...current, ...value, treatments: current.treatments });
         this.toast.success('Inställningarna sparades.');
       },
       error: () => this.error.set('Kunde inte spara.')
@@ -177,4 +178,30 @@ export class WidgetSettingsComponent implements OnInit {
     void navigator.clipboard.writeText(snippet);
     this.toast.success('Koden kopierades.');
   }
+}
+
+function isLoopbackBase(url: string | undefined | null): boolean {
+  if (!url?.trim()) return true;
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return true;
+  }
+}
+
+function resolveHost(value: WidgetSettings): WidgetSettings {
+  if (!isLoopbackBase(value.publicBaseUrl)) return value;
+  const origin = window.location.origin;
+  const from = (value.publicBaseUrl || '').replace(/\/$/, '');
+  const rewrite = (snippet: string) => (from ? snippet.split(from).join(origin) : snippet);
+  return {
+    ...value,
+    publicBaseUrl: origin,
+    embedSnippet: rewrite(value.embedSnippet ?? ''),
+    treatmentSnippets: (value.treatmentSnippets ?? []).map((snip) => ({
+      ...snip,
+      snippet: rewrite(snip.snippet)
+    }))
+  };
 }

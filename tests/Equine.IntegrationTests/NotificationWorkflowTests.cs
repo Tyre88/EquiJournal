@@ -325,6 +325,52 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
     }
 
     [Fact]
+    public async Task Widget_settings_uses_request_host_when_public_base_is_loopback()
+    {
+        var client = _factory.CreateClient();
+        await LoginAsync(client);
+        await PutPublicBaseUrlAsync(client, "http://localhost:5087");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/app/widget-settings");
+        request.Headers.Host = "bokning.example.se";
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var settings = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+
+        settings.GetProperty("publicBaseUrl").GetString().ShouldBe("http://bokning.example.se");
+        settings.GetProperty("embedSnippet").GetString().ShouldContain("http://bokning.example.se/widget/v1/loader.js");
+        settings.GetProperty("embedSnippet").GetString().ShouldNotContain("localhost:5087");
+    }
+
+    [Fact]
+    public async Task Widget_settings_keeps_explicit_public_base_url()
+    {
+        var client = _factory.CreateClient();
+        await LoginAsync(client);
+        var saved = await PutPublicBaseUrlAsync(client, "https://widget.example.se");
+        saved.GetProperty("publicBaseUrl").GetString().ShouldBe("https://widget.example.se");
+        saved.GetProperty("embedSnippet").GetString().ShouldContain("https://widget.example.se/widget/v1/loader.js");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/app/widget-settings");
+        request.Headers.Host = "bokning.example.se";
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var settings = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
+        settings.GetProperty("publicBaseUrl").GetString().ShouldBe("https://widget.example.se");
+
+        await PutPublicBaseUrlAsync(client, "http://localhost:5087");
+    }
+
+    [Fact]
+    public async Task Widget_csp_allows_same_origin_framing()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/widget/");
+        var csp = response.Headers.GetValues("Content-Security-Policy").ShouldHaveSingleItem();
+        csp.ShouldStartWith("frame-ancestors 'self'");
+    }
+
+    [Fact]
     public async Task Portal_cannot_read_another_owners_horse_and_hides_journal_by_default()
     {
         var admin = _factory.CreateClient();
@@ -419,5 +465,25 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         var body = await login.Content.ReadFromJsonAsync<JsonElement>(Json);
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", body.GetProperty("accessToken").GetString());
+    }
+
+    private static async Task<JsonElement> PutPublicBaseUrlAsync(HttpClient client, string publicBaseUrl)
+    {
+        var current = await client.GetFromJsonAsync<JsonElement>("/api/app/widget-settings", Json);
+        current.ValueKind.ShouldNotBe(JsonValueKind.Undefined);
+        var put = await client.PutAsJsonAsync("/api/app/widget-settings", new
+        {
+            allowedOrigins = current.GetProperty("allowedOrigins").EnumerateArray().Select(x => x.GetString()).ToArray(),
+            showPrices = current.GetProperty("showPrices").GetBoolean(),
+            bookingTerms = current.GetProperty("bookingTerms").GetString(),
+            privacyPolicyUrl = current.GetProperty("privacyPolicyUrl").GetString(),
+            verificationWindowMinutes = current.GetProperty("verificationWindowMinutes").GetInt32(),
+            cancellationNoticeHours = current.GetProperty("cancellationNoticeHours").GetInt32(),
+            publicBaseUrl,
+            contactPhone = current.GetProperty("contactPhone").GetString(),
+            contactEmail = current.GetProperty("contactEmail").GetString()
+        });
+        put.EnsureSuccessStatusCode();
+        return await put.Content.ReadFromJsonAsync<JsonElement>(Json);
     }
 }

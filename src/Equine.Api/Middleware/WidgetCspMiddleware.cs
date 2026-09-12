@@ -15,7 +15,9 @@ public sealed class WidgetCspMiddleware
             try
             {
                 var origins = (await settings.GetAsync(context.RequestAborted)).GetAllowedOrigins();
-                var ancestors = origins.Count == 0 ? "'none'" : string.Join(' ', origins);
+                var ancestors = origins.Count == 0
+                    ? "'self'"
+                    : "'self' " + string.Join(' ', origins);
                 context.Response.Headers.ContentSecurityPolicy = $"frame-ancestors {ancestors}";
             }
             catch (Exception)
