@@ -54,7 +54,7 @@ type MapsPlace = {
         </ul>
       }
     </div>
-    <div #map class="address-map" role="img" aria-label="Karta för hemadress"></div>
+    <div #map class="address-map" role="img" [attr.aria-label]="ariaLabel()"></div>
     <p class="muted map-hint">Välj en adress i listan eller klicka på kartan. Latitud och longitud fylls i automatiskt.</p>
   `,
   styles: [`
@@ -97,6 +97,8 @@ export class AddressPickerComponent {
   readonly apiKey = input('');
   readonly latitude = input<number | null>(null);
   readonly longitude = input<number | null>(null);
+  readonly ariaLabel = input('Karta för adress');
+  readonly pinLabel = input('H');
   readonly picked = output<AddressPick>();
 
   query = '';
@@ -172,7 +174,7 @@ export class AddressPickerComponent {
       draggable: true,
       icon: divIcon({
         className: 'schema-route-pin schema-route-pin-home',
-        html: '<span>H</span>',
+        html: `<span>${this.pinLabel()}</span>`,
         iconSize: [28, 28],
         iconAnchor: [14, 28]
       })

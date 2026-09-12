@@ -4,13 +4,14 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { environment } from '../../../environments/environment';
+import { AddressPickerComponent, AddressPick } from '../../settings/address-picker.component';
 
 const API_URL = environment.apiUrl;
 
 @Component({
   selector: 'app-owner-form',
   standalone: true,
-  imports: [ReactiveFormsModule, EjPageHeaderComponent],
+  imports: [ReactiveFormsModule, EjPageHeaderComponent, AddressPickerComponent],
   template: `
     <div class="page page--narrow">
       <ej-page-header [title]="isEdit() ? 'Redigera kund' : 'Ny kund'" backHref="/owners" />
@@ -34,6 +35,14 @@ const API_URL = environment.apiUrl;
         </div>
 
         <h2 class="card-title">Adress</h2>
+        <app-address-picker
+          [apiKey]="mapsBrowserKey()"
+          [latitude]="mapLatitude()"
+          [longitude]="mapLongitude()"
+          ariaLabel="Karta för kundadress"
+          pinLabel="K"
+          (picked)="applyAddress($event)"
+        />
         <div class="field">
           <label class="field-label" for="addressStreet">Gatuadress</label>
           <input id="addressStreet" class="input" formControlName="addressStreet" />
@@ -95,6 +104,9 @@ export class OwnerFormComponent implements OnInit {
   isEdit = signal(false);
   loading = signal(false);
   errorMessage = signal('');
+  mapsBrowserKey = signal('');
+  mapLatitude = signal<number | null>(null);
+  mapLongitude = signal<number | null>(null);
 
   ownerForm = this.fb.group({
     name: ['', [Validators.required]],
@@ -110,6 +122,10 @@ export class OwnerFormComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.http.get<{ mapsBrowserKey?: string }>(`${API_URL}/api/app/practice-settings`).subscribe({
+      next: p => this.mapsBrowserKey.set(p.mapsBrowserKey ?? ''),
+      error: () => this.mapsBrowserKey.set('')
+    });
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.ownerId.set(id);
@@ -134,6 +150,8 @@ export class OwnerFormComponent implements OnInit {
           latitude: owner.latitude ?? null,
           longitude: owner.longitude ?? null
         });
+        this.mapLatitude.set(owner.latitude ?? null);
+        this.mapLongitude.set(owner.longitude ?? null);
         this.loading.set(false);
       },
       error: () => {
@@ -141,6 +159,18 @@ export class OwnerFormComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  applyAddress(pick: AddressPick): void {
+    this.ownerForm.patchValue({
+      addressStreet: pick.street,
+      addressPostcode: pick.postcode,
+      addressCity: pick.city,
+      latitude: pick.latitude,
+      longitude: pick.longitude
+    });
+    this.mapLatitude.set(pick.latitude);
+    this.mapLongitude.set(pick.longitude);
   }
 
   onSubmit(): void {
