@@ -21,7 +21,7 @@
     "@angular/compiler": "20.3.30",
     "@angular/core": "20.3.30",
     "@angular/forms": "20.3.30",
-    "@angular/localize": "20.3.30",
+    "@angular/localize": "22.1.5",
     "@angular/platform-browser": "20.3.30",
     "@angular/platform-browser-dynamic": "20.3.30",
     "@angular/router": "20.3.30",
