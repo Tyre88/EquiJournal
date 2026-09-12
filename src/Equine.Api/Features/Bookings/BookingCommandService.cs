@@ -76,7 +76,7 @@ public sealed class BookingCommandService
 
         foreach (var horse in horses)
         {
-            if (!LocationResolver.SameStable(location.NormalizedKey, LocationResolver.KeyFor(horse, horse.Owner)))
+            if (!LocationResolver.SameStable(LocationResolver.KeyFor(location), LocationResolver.KeyFor(horse, horse.Owner)))
                 throw new ArgumentException("Alla hästar på ett besök måste vara på samma stall.");
         }
 
@@ -136,7 +136,7 @@ public sealed class BookingCommandService
             ?? throw new ArgumentException("Treatment type not found.");
 
         await _db.Entry(visit).Reference(v => v.Location).LoadAsync(cancellationToken);
-        if (!LocationResolver.SameStable(visit.Location.NormalizedKey, LocationResolver.KeyFor(horse, horse.Owner)))
+        if (!LocationResolver.SameStable(LocationResolver.KeyFor(visit.Location), LocationResolver.KeyFor(horse, horse.Owner)))
             throw new ArgumentException("Hästen står på ett annat stall. Skapa ett nytt besök.");
 
         var line = new BookingLine(

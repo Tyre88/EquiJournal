@@ -11,11 +11,24 @@ public sealed class LocationResolver
 
     public LocationResolver(EquineDbContext db) => _db = db;
 
-    public static string KeyFor(Horse horse, Owner owner) =>
-        AddressNormalization.LocationKey(
-            horse.StableAddress ?? owner.AddressStreet,
-            horse.StablePostcode ?? owner.AddressPostcode,
-            horse.StableCity ?? owner.AddressCity);
+    public static (string? Street, string? Postcode, string? City, decimal? Lat, decimal? Lng) GetEffectiveStableAddress(
+        Horse horse,
+        Owner owner) =>
+        (
+            Coalesce(horse.StableAddress, owner.AddressStreet),
+            Coalesce(horse.StablePostcode, owner.AddressPostcode),
+            Coalesce(horse.StableCity, owner.AddressCity),
+            horse.StableLatitude ?? owner.Latitude,
+            horse.StableLongitude ?? owner.Longitude);
+
+    public static string KeyFor(Horse horse, Owner owner)
+    {
+        var address = GetEffectiveStableAddress(horse, owner);
+        return AddressNormalization.LocationKey(address.Street, address.Postcode, address.City);
+    }
+
+    public static string KeyFor(Location location) =>
+        AddressNormalization.LocationKey(location.AddressStreet, location.AddressPostcode, location.AddressCity);
 
     public static bool SameStable(string visitKey, string horseKey)
     {
@@ -28,11 +41,7 @@ public sealed class LocationResolver
 
     public async Task<Location> ResolveForHorseAsync(Horse horse, Owner owner, CancellationToken cancellationToken = default)
     {
-        var street = horse.StableAddress ?? owner.AddressStreet;
-        var postcode = horse.StablePostcode ?? owner.AddressPostcode;
-        var city = horse.StableCity ?? owner.AddressCity;
-        var lat = horse.StableLatitude ?? owner.Latitude;
-        var lng = horse.StableLongitude ?? owner.Longitude;
+        var (street, postcode, city, lat, lng) = GetEffectiveStableAddress(horse, owner);
         var key = AddressNormalization.LocationKey(street, postcode, city);
 
         if (!AddressNormalization.IsEmptyKey(key))
@@ -60,4 +69,7 @@ public sealed class LocationResolver
         _db.Locations.Add(location);
         return location;
     }
+
+    private static string? Coalesce(string? horseValue, string? ownerValue) =>
+        string.IsNullOrWhiteSpace(horseValue) ? ownerValue : horseValue;
 }

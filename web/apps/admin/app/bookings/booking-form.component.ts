@@ -232,7 +232,7 @@ export class BookingFormComponent implements OnInit {
         this.router.navigate(['/schema']);
       },
       error: err => {
-        this.error.set(err?.error?.message || 'Kunde inte boka.');
+        this.error.set(err?.error?.detail || err?.error?.message || 'Kunde inte boka.');
         if (err?.error?.slots) this.slots.set(err.error.slots);
         this.saving.set(false);
       }

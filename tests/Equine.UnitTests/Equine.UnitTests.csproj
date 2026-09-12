@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Equine.Api\Equine.Api.csproj" />
     <ProjectReference Include="..\..\src\Equine.Domain\Equine.Domain.csproj" />
     <ProjectReference Include="..\..\src\Equine.Infrastructure\Equine.Infrastructure.csproj" />
   </ItemGroup>

@@ -103,6 +103,48 @@ public class BookingWorkflowTests : IClassFixture<EquineApiFactory>
     }
 
     [Fact]
+    public async Task Booking_succeeds_when_horse_has_empty_stable_and_owner_has_address()
+    {
+        var client = _factory.CreateClient();
+        await LoginAsync(client);
+
+        var owner = await client.PostAsJsonAsync("/api/app/owners", new
+        {
+            name = "Ola Olsson",
+            email = $"ola-{Guid.NewGuid():N}@ex.se",
+            phone = "0701234567",
+            addressStreet = "Storgatan 1",
+            addressPostcode = "27531",
+            addressCity = "Sjöbo"
+        });
+        owner.EnsureSuccessStatusCode();
+        var ownerId = (await owner.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("id").GetGuid();
+
+        var horse = await client.PostAsJsonAsync("/api/app/horses", new
+        {
+            ownerId,
+            name = $"Häst-{Guid.NewGuid():N}"[..12],
+            species = "Hast",
+            sex = "Sto",
+            birthYear = 2018,
+            stableAddress = "",
+            stablePostcode = "",
+            stableCity = ""
+        });
+        horse.EnsureSuccessStatusCode();
+        var horseId = (await horse.Content.ReadFromJsonAsync<JsonElement>(Json)).GetProperty("id").GetGuid();
+
+        var (_, _, treatmentId, startsAt) = await SeedBookableAsync(client, hour: 15);
+
+        var created = await client.PostAsJsonAsync("/api/app/bookings", new
+        {
+            startsAt,
+            lines = new[] { new { horseId, treatmentTypeId = treatmentId } }
+        });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
     public async Task Changing_availability_rule_invalidates_slot_cache()
     {
         var client = _factory.CreateClient();

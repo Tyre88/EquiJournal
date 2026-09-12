@@ -114,9 +114,9 @@ public static class HorseEndpoints
                 request.Colour,
                 request.Markings,
                 request.StableLocation,
-                request.StableAddress ?? owner.AddressStreet,
-                request.StablePostcode ?? owner.AddressPostcode,
-                request.StableCity ?? owner.AddressCity,
+                CoalesceStable(request.StableAddress, owner.AddressStreet),
+                CoalesceStable(request.StablePostcode, owner.AddressPostcode),
+                CoalesceStable(request.StableCity, owner.AddressCity),
                 request.StableLatitude ?? owner.Latitude,
                 request.StableLongitude ?? owner.Longitude,
                 request.Background);
@@ -246,4 +246,7 @@ public static class HorseEndpoints
         bool? ClearFollowUpOverride = null);
 
     public record HorseSearchRequest(string Query);
+
+    private static string? CoalesceStable(string? horseValue, string? ownerValue) =>
+        string.IsNullOrWhiteSpace(horseValue) ? ownerValue : horseValue;
 }
