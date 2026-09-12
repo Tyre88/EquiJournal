@@ -22,9 +22,7 @@ public static class SlotEngine
         var duration = options.DurationMinutesOverride ?? input.Treatment.DurationMinutes;
         if (duration <= 0) return [];
 
-        Guid? queryZoneId = null;
-        if (!string.IsNullOrWhiteSpace(query.Postcode) && input.Zones.Count > 0)
-            queryZoneId = ResolveZoneId(query.Postcode, input.Zones);
+        Guid? queryZoneId = ResolveQueryZone(query, input.Zones);
 
         var nowInstant = Instant.FromDateTimeOffset(input.Now);
         var minStart = options.ApplyMinNotice
@@ -62,14 +60,18 @@ public static class SlotEngine
         return slots;
     }
 
-    public static Guid? ResolveZoneId(string postcode, IReadOnlyList<SlotZone> zones)
+    public static Guid? ResolveQueryZone(SlotQuery query, IReadOnlyList<SlotZone> zones)
     {
-        var normalized = AddressNormalization.NormalizePostcode(postcode);
-        var match = zones.FirstOrDefault(z =>
-            !z.IsFallback && z.Postcodes.Any(p => AddressNormalization.NormalizePostcode(p) == normalized));
-        if (match is not null) return match.Id;
-        return zones.FirstOrDefault(z => z.IsFallback)?.Id;
+        if (zones.Count == 0) return null;
+        if (query.Latitude is double lat && query.Longitude is double lng)
+            return ResolveZoneId(lat, lng, zones);
+        if (!string.IsNullOrWhiteSpace(query.Postcode))
+            return zones.FirstOrDefault(z => z.IsFallback)?.Id;
+        return null;
     }
+
+    public static Guid? ResolveZoneId(double latitude, double longitude, IReadOnlyList<SlotZone> zones) =>
+        ZoneResolver.ResolveId(latitude, longitude, zones.Select(z => z.ToRecord()).ToList());
 
     private static List<(Instant Start, Instant End)> ExpandDayWindows(
         DateOnly date,

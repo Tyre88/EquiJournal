@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Equine.Api.Auth;
 using Equine.Domain.Entities;
+using Equine.Domain.Locations;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Scheduling;
@@ -32,11 +34,21 @@ public static class AvailabilityEndpoints
 
         zones.MapPost("/", async (ZoneRequest request, EquineDbContext db, ISlotCache cache) =>
         {
-            var zone = new Zone(request.Name, request.Postcodes, request.TravelBufferMinutes);
-            db.Zones.Add(zone);
-            await db.SaveChangesAsync();
-            cache.InvalidateAll();
-            return Results.Created($"/api/app/zones/{zone.Id}", ToZoneDto(zone));
+            if (string.IsNullOrWhiteSpace(request.Name))
+                return Results.BadRequest("Namn krävs.");
+            try
+            {
+                var zone = new Zone(request.Name.Trim(), request.TravelBufferMinutes);
+                ApplyGeometry(zone, request);
+                db.Zones.Add(zone);
+                await db.SaveChangesAsync();
+                cache.InvalidateAll();
+                return Results.Created($"/api/app/zones/{zone.Id}", ToZoneDto(zone));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
         }).WithName("CreateZone");
 
         zones.MapPut("/{id:guid}", async (Guid id, ZoneRequest request, EquineDbContext db, ISlotCache cache) =>
@@ -44,9 +56,25 @@ public static class AvailabilityEndpoints
             var zone = await db.Zones.FindAsync(id);
             if (zone is null) return Results.NotFound();
             if (zone.IsFallback)
+            {
                 zone.Update(travelBufferMinutes: request.TravelBufferMinutes);
+            }
             else
-                zone.Update(request.Name, request.Postcodes, request.TravelBufferMinutes);
+            {
+                try
+                {
+                    zone.Update(
+                        string.IsNullOrWhiteSpace(request.Name) ? zone.Name : request.Name.Trim(),
+                        request.TravelBufferMinutes,
+                        request.BufferKm);
+                    ApplyGeometry(zone, request, request.BufferKm ?? zone.BufferKm);
+                }
+                catch (ArgumentException ex)
+                {
+                    return Results.BadRequest(ex.Message);
+                }
+            }
+
             await db.SaveChangesAsync();
             cache.InvalidateAll();
             return Results.Ok(ToZoneDto(zone));
@@ -226,14 +254,62 @@ public static class AvailabilityEndpoints
         return app;
     }
 
-    private static object ToZoneDto(Zone z) => new
+    private static void ApplyGeometry(Zone zone, ZoneRequest request, double? bufferKm = null)
     {
-        z.Id,
-        z.Name,
-        Postcodes = z.GetPostcodes(),
-        z.TravelBufferMinutes,
-        z.IsFallback
-    };
+        var kind = request.GeometryKind?.Trim().ToLowerInvariant();
+        var buffer = bufferKm ?? request.BufferKm ?? zone.BufferKm;
+        if (string.IsNullOrWhiteSpace(kind))
+        {
+            if (request.ClearGeometry)
+                zone.ClearGeometry();
+            return;
+        }
+
+        if (kind == ZoneGeometryKinds.Circle)
+        {
+            if (request.Center is null || request.RadiusKm is null)
+                throw new ArgumentException("Cirkelzon kräver centrum och radie.");
+            zone.SetCircle(request.Center.Lat, request.Center.Lng, request.RadiusKm.Value, buffer);
+            return;
+        }
+
+        if (kind == ZoneGeometryKinds.Polygon)
+        {
+            if (request.Geometry is null || request.Geometry.Value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                throw new ArgumentException("Yta krävs för en polygonzon.");
+            zone.SetPolygon(request.Geometry.Value.GetRawText(), buffer);
+            return;
+        }
+
+        throw new ArgumentException("Ogiltig zonform.");
+    }
+
+    private static object ToZoneDto(Zone z)
+    {
+        object? geometry = DeserializeGeo(z.GeometryJson);
+        object? effective = DeserializeGeo(z.EffectiveGeometryJson);
+        return new
+        {
+            z.Id,
+            z.Name,
+            z.GeometryKind,
+            Geometry = geometry,
+            Center = z.CenterLatitude is not null && z.CenterLongitude is not null
+                ? new { Lat = z.CenterLatitude, Lng = z.CenterLongitude }
+                : null,
+            z.RadiusKm,
+            z.BufferKm,
+            EffectiveGeometry = effective,
+            z.TravelBufferMinutes,
+            z.IsFallback
+        };
+    }
+
+    private static object? DeserializeGeo(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        return JsonSerializer.Deserialize<JsonElement>(json);
+    }
 
     private static object ToRuleDto(AvailabilityRule r) => new
     {
@@ -249,7 +325,16 @@ public static class AvailabilityEndpoints
         r.Active
     };
 
-    public record ZoneRequest(string Name, IReadOnlyList<string>? Postcodes = null, int TravelBufferMinutes = 0);
+    public record GeoPointDto(double Lat, double Lng);
+    public record ZoneRequest(
+        string Name,
+        string? GeometryKind = null,
+        JsonElement? Geometry = null,
+        GeoPointDto? Center = null,
+        double? RadiusKm = null,
+        double? BufferKm = null,
+        int TravelBufferMinutes = 0,
+        bool ClearGeometry = false);
     public record LocationRequest(
         LocationType Type,
         string Name,

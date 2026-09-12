@@ -59,7 +59,7 @@ public class SlotEngineTests
     }
 
     [Fact]
-    public void Zone_restricted_day_excludes_wrong_postcode()
+    public void Zone_restricted_day_excludes_point_outside_zone()
     {
         var tuesday = new DateOnly(2026, 3, 17);
         var rules = new[]
@@ -67,10 +67,10 @@ public class SlotEngineTests
             new SlotRule(DayOfWeek.Tuesday, new TimeOnly(8, 0), new TimeOnly(17, 0), null, null, ZoneSjobo, true)
         };
         var zones = Zones();
-        var wrong = Run(tuesday, tuesday, rules: rules, zones: zones, postcode: "22100");
+        var wrong = Run(tuesday, tuesday, rules: rules, zones: zones, latitude: 55.7047, longitude: 13.1910);
         wrong.ShouldBeEmpty();
 
-        var right = Run(tuesday, tuesday, rules: rules, zones: zones, postcode: "27531");
+        var right = Run(tuesday, tuesday, rules: rules, zones: zones, latitude: 55.6318, longitude: 13.7039);
         right.ShouldNotBeEmpty();
     }
 
@@ -117,7 +117,7 @@ public class SlotEngineTests
         var visit = new OccupyingVisit(start, start.AddMinutes(30), 0, 0, ZoneSjobo);
         var zones = Zones();
         zones[0] = zones[0] with { TravelBufferMinutes = 45 };
-        var slots = Run(day, day, visits: [visit], zones: zones, postcode: "27531", treatment: Treat(30, 0, 0));
+        var slots = Run(day, day, visits: [visit], zones: zones, latitude: 55.6318, longitude: 13.7039, treatment: Treat(30, 0, 0));
         LocalTimes(slots, day).ShouldContain(new TimeOnly(10, 30));
     }
 
@@ -130,9 +130,11 @@ public class SlotEngineTests
         IReadOnlyList<SlotTimeOff>? timeOff = null,
         IReadOnlyList<OccupyingVisit>? visits = null,
         IReadOnlyList<SlotZone>? zones = null,
-        string? postcode = null)
+        string? postcode = null,
+        double? latitude = null,
+        double? longitude = null)
     {
-        var query = new SlotQuery(Practitioner, Treatment, from, to, postcode);
+        var query = new SlotQuery(Practitioner, Treatment, from, to, postcode, latitude, longitude);
         var input = new SlotEngineInput(
             rules ?? [WeekdayRule(DayOfWeek.Monday), WeekdayRule(DayOfWeek.Tuesday), WeekdayRule(DayOfWeek.Sunday)],
             timeOff ?? [],
@@ -154,8 +156,8 @@ public class SlotEngineTests
 
     private static SlotZone[] Zones() =>
     [
-        new SlotZone(ZoneSjobo, ["27531"], 0, false),
-        new SlotZone(ZoneOvrigt, [], 0, true)
+        new SlotZone(ZoneSjobo, 0, false, "Sjöbo", "circle", null, 55.6318, 13.7039, 20),
+        new SlotZone(ZoneOvrigt, 0, true, "Övrigt")
     ];
 
     private static DateTimeOffset Local(DateOnly date, int hour, int minute)

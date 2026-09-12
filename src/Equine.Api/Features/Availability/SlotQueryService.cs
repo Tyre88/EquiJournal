@@ -16,17 +16,20 @@ public sealed class SlotQueryService
     private readonly ISlotCache _slotCache;
     private readonly IMemoryCache _memoryCache;
     private readonly ITravelBuffer _travelBuffer;
+    private readonly IPostcodeGeocoder _geocoder;
 
     public SlotQueryService(
         EquineDbContext db,
         ISlotCache slotCache,
         IMemoryCache memoryCache,
-        ITravelBuffer travelBuffer)
+        ITravelBuffer travelBuffer,
+        IPostcodeGeocoder geocoder)
     {
         _db = db;
         _slotCache = slotCache;
         _memoryCache = memoryCache;
         _travelBuffer = travelBuffer;
+        _geocoder = geocoder;
     }
 
     public async Task<IReadOnlyList<Slot>> GetSlotsAsync(
@@ -34,8 +37,9 @@ public sealed class SlotQueryService
         SlotOptions options,
         CancellationToken cancellationToken = default)
     {
+        query = await WithCoordinatesAsync(query, cancellationToken);
         var version = _memoryCache.Get<int>(MemorySlotCache.VersionKey);
-        var key = $"{version}|{query.PractitionerId}|{query.TreatmentTypeId}|{query.From:O}|{query.To:O}|{query.Postcode}|{options.DurationMinutesOverride}|{options.ApplyMinNotice}|{options.ApplyMaxAdvance}|{options.GranularityMinutes}|{options.MaxSlots}";
+        var key = $"{version}|{query.PractitionerId}|{query.TreatmentTypeId}|{query.From:O}|{query.To:O}|{query.Postcode}|{query.Latitude}|{query.Longitude}|{options.DurationMinutesOverride}|{options.ApplyMinNotice}|{options.ApplyMaxAdvance}|{options.GranularityMinutes}|{options.MaxSlots}";
 
         if (_slotCache.TryGet(key, out var cached) && cached is not null)
             return cached;
@@ -76,7 +80,7 @@ public sealed class SlotQueryService
             .ToListAsync(cancellationToken);
 
         var zones = await _db.Zones.AsNoTracking().ToListAsync(cancellationToken);
-        var slotZones = zones.Select(z => new SlotZone(z.Id, z.GetPostcodes(), z.TravelBufferMinutes, z.IsFallback)).ToList();
+        var slotZones = zones.Select(ToSlotZone).ToList();
 
         var treatmentIds = visits
             .SelectMany(v => v.Lines)
@@ -99,9 +103,7 @@ public sealed class SlotQueryService
             treatments.TryGetValue(active[0].TreatmentTypeId, out var first);
             treatments.TryGetValue(active[^1].TreatmentTypeId, out var last);
 
-            Guid? zoneId = null;
-            if (slotZones.Count > 0 && !string.IsNullOrWhiteSpace(visit.Location.AddressPostcode))
-                zoneId = SlotEngine.ResolveZoneId(visit.Location.AddressPostcode, slotZones);
+            var zoneId = await ResolveVisitZoneAsync(visit.Location, slotZones, cancellationToken);
 
             occupying.Add(new OccupyingVisit(
                 visit.StartsAt,
@@ -124,4 +126,49 @@ public sealed class SlotQueryService
                 treatment.MaxAdvanceDays),
             DateTimeOffset.UtcNow);
     }
+
+    private async Task<SlotQuery> WithCoordinatesAsync(SlotQuery query, CancellationToken cancellationToken)
+    {
+        if (query.Latitude is not null && query.Longitude is not null)
+            return query;
+        if (string.IsNullOrWhiteSpace(query.Postcode))
+            return query;
+
+        var point = await _geocoder.GeocodeAsync(query.Postcode, cancellationToken);
+        return point is null
+            ? query
+            : query with { Latitude = point.Value.Latitude, Longitude = point.Value.Longitude };
+    }
+
+    private async Task<Guid?> ResolveVisitZoneAsync(
+        Location location,
+        IReadOnlyList<SlotZone> slotZones,
+        CancellationToken cancellationToken)
+    {
+        if (slotZones.Count == 0) return null;
+
+        if (location.Latitude is decimal lat && location.Longitude is decimal lng)
+            return SlotEngine.ResolveZoneId((double)lat, (double)lng, slotZones);
+
+        if (string.IsNullOrWhiteSpace(location.AddressPostcode))
+            return slotZones.FirstOrDefault(z => z.IsFallback)?.Id;
+
+        var point = await _geocoder.GeocodeAsync(location.AddressPostcode, cancellationToken);
+        if (point is null)
+            return slotZones.FirstOrDefault(z => z.IsFallback)?.Id;
+
+        return SlotEngine.ResolveZoneId(point.Value.Latitude, point.Value.Longitude, slotZones);
+    }
+
+    private static SlotZone ToSlotZone(Zone z) => new(
+        z.Id,
+        z.TravelBufferMinutes,
+        z.IsFallback,
+        z.Name,
+        z.GeometryKind,
+        z.GeometryJson,
+        z.CenterLatitude,
+        z.CenterLongitude,
+        z.RadiusKm,
+        z.BufferKm);
 }

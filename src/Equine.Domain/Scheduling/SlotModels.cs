@@ -1,3 +1,5 @@
+using Equine.Domain.Locations;
+
 namespace Equine.Domain.Scheduling;
 
 public sealed record Slot(DateTimeOffset StartsAt, DateTimeOffset EndsAt);
@@ -7,7 +9,9 @@ public sealed record SlotQuery(
     Guid TreatmentTypeId,
     DateOnly From,
     DateOnly To,
-    string? Postcode);
+    string? Postcode,
+    double? Latitude = null,
+    double? Longitude = null);
 
 public sealed record SlotOptions(
     int GranularityMinutes = 30,
@@ -47,9 +51,27 @@ public sealed record OccupyingVisit(
 
 public sealed record SlotZone(
     Guid Id,
-    IReadOnlyList<string> Postcodes,
     int TravelBufferMinutes,
-    bool IsFallback);
+    bool IsFallback,
+    string Name = "",
+    string? GeometryKind = null,
+    string? GeometryJson = null,
+    double? CenterLatitude = null,
+    double? CenterLongitude = null,
+    double? RadiusKm = null,
+    double BufferKm = 0)
+{
+    public ZoneShape ToShape() => new(
+        IsFallback,
+        GeometryKind,
+        GeometryJson,
+        CenterLatitude,
+        CenterLongitude,
+        RadiusKm,
+        BufferKm);
+
+    public ZoneShapeRecord ToRecord() => new(Id, Name, IsFallback, ToShape());
+}
 
 public sealed record SlotEngineInput(
     IReadOnlyList<SlotRule> Rules,

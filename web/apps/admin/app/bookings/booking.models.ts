@@ -90,10 +90,25 @@ export interface TreatmentTypeRef {
   status: string;
 }
 
+export interface GeoJsonPolygon {
+  type: 'Polygon';
+  coordinates: number[][][];
+}
+
+export interface ZoneCenter {
+  lat: number;
+  lng: number;
+}
+
 export interface Zone {
   id: string;
   name: string;
-  postcodes: string[];
+  geometryKind?: 'polygon' | 'circle' | null;
+  geometry?: GeoJsonPolygon | null;
+  center?: ZoneCenter | null;
+  radiusKm?: number | null;
+  bufferKm: number;
+  effectiveGeometry?: GeoJsonPolygon | null;
   travelBufferMinutes: number;
   isFallback: boolean;
 }

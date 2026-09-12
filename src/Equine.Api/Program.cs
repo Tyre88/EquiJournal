@@ -31,6 +31,7 @@ using Equine.Infrastructure.Sms;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Equine.Domain.JournalTemplates;
+using Equine.Domain.Locations;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure.Scheduling;
 using Equine.Infrastructure;
@@ -94,6 +95,10 @@ builder.Services.AddScoped<SlotQueryService>();
 builder.Services.AddScoped<LocationResolver>();
 builder.Services.AddScoped<BookingCommandService>();
 builder.Services.AddScoped<TravelRouteService>();
+if (builder.Environment.IsEnvironment("Testing"))
+    builder.Services.AddSingleton<IPostcodeGeocoder, KnownPostcodeGeocoder>();
+else
+    builder.Services.AddScoped<IPostcodeGeocoder, NominatimPostcodeGeocoder>();
 builder.Services.AddScoped<SchemaPlaceResolver>();
 builder.Services.AddScoped<SchemaDayService>();
 builder.Services.AddDataProtection();
@@ -395,6 +400,7 @@ async Task EnsureDatabaseExists(WebApplication app)
         await EnableExtensions(context);
     }
 
+    await EnsureZoneGeometryColumns(context);
     await SeedFallbackZone(context);
     await SeedWidgetSettings(context);
     await SeedNotificationFoundation(context);
@@ -472,6 +478,27 @@ async Task BackfillAnatomyFindingOptions(EquineDbContext context)
         await context.SaveChangesAsync();
 }
 
+async Task EnsureZoneGeometryColumns(EquineDbContext context)
+{
+    await context.Database.ExecuteSqlRawAsync(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'zones'
+            ) THEN
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""GeometryKind"" varchar(20) NULL;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""GeometryJson"" jsonb NULL;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""CenterLatitude"" double precision NULL;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""CenterLongitude"" double precision NULL;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""RadiusKm"" double precision NULL;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""BufferKm"" double precision NOT NULL DEFAULT 0;
+                ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""EffectiveGeometryJson"" jsonb NULL;
+            END IF;
+        END $$;
+    ");
+}
+
 async Task SeedFallbackZone(EquineDbContext context)
 {
     if (await context.Zones.AnyAsync(z => z.IsFallback))
@@ -481,7 +508,6 @@ async Task SeedFallbackZone(EquineDbContext context)
     {
         context.Zones.Add(new Equine.Domain.Entities.Zone(
             Equine.Domain.Locations.ZoneResolver.FallbackZoneName,
-            postcodes: [],
             travelBufferMinutes: 0,
             isFallback: true));
         await context.SaveChangesAsync();
@@ -643,12 +669,25 @@ async Task EnableExtensions(EquineDbContext context)
         CREATE TABLE IF NOT EXISTS ""zones"" (
             ""Id"" uuid PRIMARY KEY,
             ""Name"" varchar(200) NOT NULL UNIQUE,
-            ""PostcodesJson"" jsonb NOT NULL,
+            ""GeometryKind"" varchar(20) NULL,
+            ""GeometryJson"" jsonb NULL,
+            ""CenterLatitude"" double precision NULL,
+            ""CenterLongitude"" double precision NULL,
+            ""RadiusKm"" double precision NULL,
+            ""BufferKm"" double precision NOT NULL DEFAULT 0,
+            ""EffectiveGeometryJson"" jsonb NULL,
             ""TravelBufferMinutes"" integer NOT NULL,
             ""IsFallback"" boolean NOT NULL,
             ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
             ""UpdatedAt"" timestamptz NOT NULL DEFAULT now()
         );
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""GeometryKind"" varchar(20) NULL;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""GeometryJson"" jsonb NULL;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""CenterLatitude"" double precision NULL;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""CenterLongitude"" double precision NULL;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""RadiusKm"" double precision NULL;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""BufferKm"" double precision NOT NULL DEFAULT 0;
+        ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""EffectiveGeometryJson"" jsonb NULL;
         CREATE TABLE IF NOT EXISTS ""availability_rules"" (
             ""Id"" uuid PRIMARY KEY,
             ""PractitionerId"" uuid NOT NULL,
