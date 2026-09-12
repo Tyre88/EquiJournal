@@ -11,6 +11,7 @@ public class ZoneConfiguration : IEntityTypeConfiguration<Zone>
         builder.ToTable("zones");
         builder.HasKey(z => z.Id);
         builder.Property(z => z.Name).HasMaxLength(200).IsRequired();
+        builder.Property(z => z.PostcodesJson).HasColumnType("jsonb").IsRequired().HasDefaultValueSql("'[]'::jsonb");
         builder.Property(z => z.GeometryKind).HasMaxLength(20);
         builder.Property(z => z.GeometryJson).HasColumnType("jsonb");
         builder.Property(z => z.EffectiveGeometryJson).HasColumnType("jsonb");

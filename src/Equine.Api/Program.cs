@@ -494,6 +494,13 @@ async Task EnsureZoneGeometryColumns(EquineDbContext context)
                 ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""RadiusKm"" double precision NULL;
                 ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""BufferKm"" double precision NOT NULL DEFAULT 0;
                 ALTER TABLE ""zones"" ADD COLUMN IF NOT EXISTS ""EffectiveGeometryJson"" jsonb NULL;
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'zones' AND column_name = 'PostcodesJson'
+                ) THEN
+                    ALTER TABLE ""zones"" ALTER COLUMN ""PostcodesJson"" SET DEFAULT '[]';
+                    UPDATE ""zones"" SET ""PostcodesJson"" = '[]' WHERE ""PostcodesJson"" IS NULL;
+                END IF;
             END IF;
         END $$;
     ");
@@ -669,6 +676,7 @@ async Task EnableExtensions(EquineDbContext context)
         CREATE TABLE IF NOT EXISTS ""zones"" (
             ""Id"" uuid PRIMARY KEY,
             ""Name"" varchar(200) NOT NULL UNIQUE,
+            ""PostcodesJson"" jsonb NOT NULL DEFAULT '[]',
             ""GeometryKind"" varchar(20) NULL,
             ""GeometryJson"" jsonb NULL,
             ""CenterLatitude"" double precision NULL,

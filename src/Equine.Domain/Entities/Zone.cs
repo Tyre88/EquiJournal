@@ -6,6 +6,7 @@ namespace Equine.Domain.Entities;
 public class Zone : Entity
 {
     public string Name { get; private set; } = string.Empty;
+    public string PostcodesJson { get; private set; } = "[]";
     public string? GeometryKind { get; private set; }
     public string? GeometryJson { get; private set; }
     public double? CenterLatitude { get; private set; }
