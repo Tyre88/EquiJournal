@@ -36,7 +36,7 @@
     "@angular/cli": "20.3.30",
     "@angular/compiler-cli": "20.3.30",
     "@types/leaflet": "^1.9.22",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.5.0",
     "ng-openapi-gen": "^0.52.0",
     "typescript": "~5.8.0"
   }
