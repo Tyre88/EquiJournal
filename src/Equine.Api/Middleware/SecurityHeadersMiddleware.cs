@@ -25,9 +25,10 @@ public sealed class SecurityHeadersMiddleware
                 "default-src 'self'; " +
                 scriptSrc +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-                "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com; " +
+                "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://*.tile.openstreetmap.org; " +
                 "font-src 'self' https://fonts.gstatic.com; " +
                 "connect-src 'self' https://maps.googleapis.com https://maps.gstatic.com; " +
+                "frame-src 'self' https://www.openstreetmap.org; " +
                 "frame-ancestors 'none'; " +
                 "base-uri 'self'; " +
                 "form-action 'self'";
