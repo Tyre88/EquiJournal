@@ -46,6 +46,8 @@ public class EquineApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["Jwt:SecurityKey"] = "EquineJournal-SuperSecretJwtKey-2024-ChangeInProduction!",
                 ["Jwt:Issuer"] = "Equine.Api",
                 ["Jwt:Audience"] = "EquineClient",
+                ["Jwt:AccessTokenExpiryMinutes"] = "15",
+                ["Jwt:RefreshTokenExpiryHours"] = "4",
                 ["RateLimiting:PublicReadPermitLimit"] = "1000",
                 ["RateLimiting:PublicBookingPermitLimit"] = "1000",
                 ["RateLimiting:PublicBookingEmailPermitLimit"] = "1000",

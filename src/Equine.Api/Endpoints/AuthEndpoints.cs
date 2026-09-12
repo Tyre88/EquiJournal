@@ -38,14 +38,15 @@ public static class AuthEndpoints
 
             Log.Information("Login successful for user {UserId} ({Email})", user.Id, user.Email);
 
-            var (accessToken, refreshToken) = await GenerateTokens(user, userManager, configuration);
-            Log.Information("Generated tokens for user {UserId} - token length: {Length}", user.Id, accessToken?.Length);
+            var tokens = await IssueTokens(user, userManager, configuration);
+            Log.Information("Generated tokens for user {UserId} - token length: {Length}", user.Id, tokens.AccessToken.Length);
             await auditWriter.WriteAsync(user.Id.ToString(), "LOGIN", "ApplicationUser", user.Id.ToString(), null, null, ct);
 
             return Results.Ok(new
             {
-                accessToken, refreshToken,
-                expires = DateTimeOffset.UtcNow.AddMinutes(configuration.GetValue<int>("Jwt:AccessTokenExpiryMinutes", 15)),
+                accessToken = tokens.AccessToken,
+                refreshToken = tokens.RefreshToken,
+                expires = tokens.Expires,
                 requiresTwoFactor = false
             });
         }).WithName("Login");
@@ -55,18 +56,24 @@ public static class AuthEndpoints
             UserManager<ApplicationUser> userManager,
             IConfiguration configuration, CancellationToken ct) =>
         {
+            if (string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
+                return Results.Json(new { error = "invalid_token" }, statusCode: StatusCodes.Status401Unauthorized);
+
             var principal = GetPrincipalFromExpiredToken(request.AccessToken, configuration);
-            if (principal is null) return Results.Json(new { error = "invalid_token" });
+            if (principal is null)
+                return Results.Json(new { error = "invalid_token" }, statusCode: StatusCodes.Status401Unauthorized);
 
             var email = principal.FindFirstValue(ClaimTypes.Email);
             var user = email is not null ? await userManager.FindByEmailAsync(email) : null;
-            if (user is null) return Results.Json(new { error = "invalid_token" });
+            if (user is null || !RefreshTokenMatches(user, request.RefreshToken))
+                return Results.Json(new { error = "invalid_token" }, statusCode: StatusCodes.Status401Unauthorized);
 
-            var (accessToken, refreshToken) = await GenerateTokens(user, userManager, configuration);
+            var tokens = await IssueTokens(user, userManager, configuration);
             return Results.Ok(new
             {
-                accessToken, refreshToken,
-                expires = DateTimeOffset.UtcNow.AddMinutes(configuration.GetValue<int>("Jwt:AccessTokenExpiryMinutes", 15))
+                accessToken = tokens.AccessToken,
+                refreshToken = tokens.RefreshToken,
+                expires = tokens.Expires
             });
         }).WithName("RefreshToken");
 
@@ -112,24 +119,34 @@ public static class AuthEndpoints
             await userManager.UpdateAsync(user);
             await signInManager.SignInAsync(user, isPersistent: false);
 
-            var (accessToken, refreshToken) = await GenerateTokens(user, userManager, configuration);
+            var tokens = await IssueTokens(user, userManager, configuration);
             await auditWriter.WriteAsync(userId, "VERIFY_2FA", "ApplicationUser", userId, null, null, ct);
 
             return Results.Ok(new
             {
-                accessToken, refreshToken,
-                expires = DateTimeOffset.UtcNow.AddMinutes(configuration.GetValue<int>("Jwt:AccessTokenExpiryMinutes", 15))
+                accessToken = tokens.AccessToken,
+                refreshToken = tokens.RefreshToken,
+                expires = tokens.Expires
             });
         }).RequireAuthorization().WithName("Verify2FA");
 
         group.MapPost("/logout", async (
             HttpContext context,
+            UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IAuditWriter auditWriter, CancellationToken ct) =>
         {
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId is not null)
+            {
+                var user = await userManager.FindByIdAsync(userId);
+                if (user is not null)
+                {
+                    ClearRefreshToken(user);
+                    await userManager.UpdateAsync(user);
+                }
                 await auditWriter.WriteAsync(userId, "LOGOUT", "ApplicationUser", userId, null, null, ct);
+            }
             await signInManager.SignOutAsync();
             return Results.Ok();
         }).RequireAuthorization().WithName("Logout");
@@ -148,6 +165,8 @@ public static class AuthEndpoints
             var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
             if (!result.Succeeded)
                 return Results.BadRequest(new { error = string.Join(" ", result.Errors.Select(e => e.Description)) });
+            ClearRefreshToken(user);
+            await userManager.UpdateAsync(user);
             await auditWriter.WriteAsync(userId, "PASSWORD_CHANGE", "ApplicationUser", userId, null, null, ct);
             return Results.Ok();
         }).RequireAuthorization().WithName("ChangePassword");
@@ -157,12 +176,15 @@ public static class AuthEndpoints
 
     public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
-    private static async Task<(string AccessToken, string RefreshToken)> GenerateTokens(
+    private static async Task<(string AccessToken, string RefreshToken, DateTimeOffset Expires)> IssueTokens(
         ApplicationUser user, UserManager<ApplicationUser> userManager, IConfiguration configuration)
     {
         var jwtSettings = configuration.GetSection("Jwt");
         var securityKey = jwtSettings["SecurityKey"]!;
-        var key = System.Text.Encoding.ASCII.GetBytes(securityKey);
+        var key = Encoding.ASCII.GetBytes(securityKey);
+        var accessMinutes = jwtSettings.GetValue<int>("AccessTokenExpiryMinutes", 15);
+        var refreshHours = jwtSettings.GetValue<int>("RefreshTokenExpiryHours", 4);
+        var expires = DateTimeOffset.UtcNow.AddMinutes(accessMinutes);
 
         var roles = await userManager.GetRolesAsync(user);
         var claims = new List<Claim>
@@ -183,7 +205,7 @@ public static class AuthEndpoints
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTimeOffset.UtcNow.AddMinutes(jwtSettings.GetValue<int>("AccessTokenExpiryMinutes", 15)).UtcDateTime,
+            Expires = expires.UtcDateTime,
             Issuer = jwtSettings["Issuer"],
             Audience = jwtSettings["Audience"],
             SigningCredentials = new SigningCredentials(
@@ -191,12 +213,38 @@ public static class AuthEndpoints
         };
 
         var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.CreateToken(tokenDescriptor);
-        var accessToken = tokenHandler.WriteToken(token);
+        var accessToken = tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
         var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 
-        return (accessToken, refreshToken);
+        user.RefreshTokenHash = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTimeOffset.UtcNow.AddHours(refreshHours);
+        await userManager.UpdateAsync(user);
+
+        return (accessToken, refreshToken, expires);
     }
+
+    private static bool RefreshTokenMatches(ApplicationUser user, string refreshToken)
+    {
+        if (string.IsNullOrEmpty(user.RefreshTokenHash)
+            || user.RefreshTokenExpiresAt is not DateTimeOffset expiry
+            || expiry <= DateTimeOffset.UtcNow)
+            return false;
+
+        var incoming = HashRefreshToken(refreshToken);
+        var stored = Encoding.UTF8.GetBytes(user.RefreshTokenHash);
+        var offered = Encoding.UTF8.GetBytes(incoming);
+        return stored.Length == offered.Length
+               && CryptographicOperations.FixedTimeEquals(stored, offered);
+    }
+
+    private static void ClearRefreshToken(ApplicationUser user)
+    {
+        user.RefreshTokenHash = null;
+        user.RefreshTokenExpiresAt = null;
+    }
+
+    private static string HashRefreshToken(string refreshToken) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
 
     private static ClaimsPrincipal? GetPrincipalFromExpiredToken(string token, IConfiguration configuration)
     {

@@ -878,6 +878,11 @@ async Task EnableExtensions(EquineDbContext context)
             END IF;
         END $$;
     ");
+
+    await context.Database.ExecuteSqlRawAsync(@"
+        ALTER TABLE ""AspNetUsers"" ADD COLUMN IF NOT EXISTS ""RefreshTokenHash"" varchar(64) NULL;
+        ALTER TABLE ""AspNetUsers"" ADD COLUMN IF NOT EXISTS ""RefreshTokenExpiresAt"" timestamptz NULL;
+    ");
 }
 
 public partial class Program { }

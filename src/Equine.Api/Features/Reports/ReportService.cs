@@ -18,24 +18,27 @@ public sealed class ReportService
         var start = ToUtcStart(from);
         var end = ToUtcEnd(to);
 
-        return await _db.JournalEntries
+        var entries = await _db.JournalEntries
             .Where(j => j.Status == JournalStatus.Signed
                         && j.PerformedAt >= start && j.PerformedAt < end
                         && j.TreatmentTypeId != null)
+            .Select(j => new { j.PerformedAt, j.TreatmentTypeName, j.Price })
+            .ToListAsync(ct);
+
+        return entries
             .GroupBy(j => new
             {
-                Month = new DateTime(j.PerformedAt.Year, j.PerformedAt.Month, 1),
-                j.TreatmentTypeId,
-                j.TreatmentTypeName
+                Month = LocalMonth(j.PerformedAt),
+                TreatmentName = j.TreatmentTypeName ?? "Okänd"
             })
             .Select(g => new TreatmentPeriodRow(
-                DateOnly.FromDateTime(g.Key.Month),
-                g.Key.TreatmentTypeName ?? "Okänd",
+                g.Key.Month,
+                g.Key.TreatmentName,
                 g.Count(),
                 g.Sum(j => j.Price ?? 0)))
             .OrderBy(r => r.Month)
             .ThenBy(r => r.TreatmentName)
-            .ToListAsync(ct);
+            .ToList();
     }
 
     public async Task<IReadOnlyList<RevenueRow>> RevenueOverviewAsync(
@@ -51,14 +54,13 @@ public sealed class ReportService
             .ToListAsync(ct);
 
         return lines
-            .GroupBy(l => DateOnly.FromDateTime(
-                TimeZoneInfo.ConvertTime(l.Visit.StartsAt, Stockholm).DateTime))
+            .GroupBy(l => LocalMonth(l.Visit.StartsAt))
             .Select(g =>
             {
                 var excl = g.Sum(l => l.Price);
                 var incl = g.Sum(l => l.Price * (1 + l.VatRate));
                 return new RevenueRow(
-                    new DateTime(g.Key.Year, g.Key.Month, 1),
+                    g.Key.ToDateTime(TimeOnly.MinValue),
                     excl,
                     incl,
                     g.Count());
@@ -203,19 +205,20 @@ public sealed class ReportService
             .ToListAsync(ct);
 
         return lines
-            .GroupBy(l => new
-            {
-                Month = DateOnly.FromDateTime(
-                    TimeZoneInfo.ConvertTime(l.Visit.StartsAt, Stockholm).DateTime),
-                l.Source
-            })
+            .GroupBy(l => new { Month = LocalMonth(l.Visit.StartsAt), l.Source })
             .Select(g => new BookingSourceRow(
-                new DateTime(g.Key.Month.Year, g.Key.Month.Month, 1),
+                g.Key.Month.ToDateTime(TimeOnly.MinValue),
                 g.Key.Source.ToString(),
                 g.Count()))
             .OrderBy(r => r.Month)
             .ThenBy(r => r.Source)
             .ToList();
+    }
+
+    private static DateOnly LocalMonth(DateTimeOffset value)
+    {
+        var local = TimeZoneInfo.ConvertTime(value, Stockholm).DateTime;
+        return new DateOnly(local.Year, local.Month, 1);
     }
 
     private static DateTimeOffset ToUtcStart(DateOnly date)
