@@ -835,8 +835,7 @@ html[data-theme="dark"] .auth-screen {
 .toast-error { border-left: 4px solid var(--color-danger); }
 .toast-info { border-left: 4px solid var(--color-info); }
 
-/* Dialog / confirm */
-.ej-dialog-overlay,
+/* Confirm dialog */
 .confirm-overlay {
   position: fixed;
   inset: 0;
@@ -847,7 +846,6 @@ html[data-theme="dark"] .auth-screen {
   justify-content: center;
   padding: var(--space-4);
 }
-.ej-dialog,
 .confirm-dialog {
   width: 100%;
   max-width: 480px;
@@ -857,7 +855,6 @@ html[data-theme="dark"] .auth-screen {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
-.ej-dialog-header,
 .confirm-dialog header {
   display: flex;
   justify-content: space-between;
@@ -865,25 +862,14 @@ html[data-theme="dark"] .auth-screen {
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
-.ej-dialog-header h2,
 .confirm-dialog h2 { margin: 0; font-size: var(--text-lg); }
-.ej-dialog-body,
 .confirm-dialog .body { padding: var(--space-5); }
-.ej-dialog-footer,
 .confirm-dialog footer {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--color-border);
-}
-.ej-dialog-close {
-  min-width: var(--tap-min);
-  border: 0;
-  background: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-text-muted);
 }
 
 .editor-section { margin-bottom: var(--space-4); }
