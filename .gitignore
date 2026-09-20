@@ -9,6 +9,7 @@ obj/
 # === Angular ===
 web/node_modules/
 widget-loader/node_modules/
+widget-loader/dist/
 web/dist/
 web/out-tsc/
 web/.angular/
