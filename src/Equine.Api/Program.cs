@@ -75,7 +75,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -243,7 +242,7 @@ if (app.Environment.IsProduction())
 app.UseMiddleware<Equine.Api.Middleware.SecurityHeadersMiddleware>();
 app.UseStaticFiles();
 app.UseRateLimiter();
-app.UseCors("App");
+app.UseCors(DynamicCorsPolicyProvider.AppPolicy);
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseMiddleware<Equine.Api.Middleware.WidgetCspMiddleware>();
