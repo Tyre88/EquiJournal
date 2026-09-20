@@ -323,7 +323,6 @@ appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> 
         email = user.Email,
         displayName = user.DisplayName,
         roles = (await userManager.GetRolesAsync(user)).ToArray(),
-        twoFactorEnabled = user.TwoFactorEnabled,
         isFirstLogin = user.IsFirstLogin,
         tenant = tenant is null ? null : new
         {
@@ -356,7 +355,7 @@ appGroup.MapPatch("/me", async (
     user.UpdatedAt = DateTimeOffset.UtcNow;
     await userManager.UpdateAsync(user);
     await audit.WriteAsync(user.Id.ToString(), "ACCOUNT_UPDATE", "ApplicationUser", user.Id.ToString(), null, null, ct);
-    return Results.Ok(new { user.Id, user.Email, user.DisplayName, user.TwoFactorEnabled });
+    return Results.Ok(new { user.Id, user.Email, user.DisplayName });
 }).RequireAuthorization();
 
 if (!app.Environment.IsEnvironment("Testing"))
@@ -551,7 +550,6 @@ async Task SeedAdminUser(WebApplication app)
         DisplayName = adminDisplayName,
         EmailConfirmed = true,
         IsFirstLogin = false,
-        TwoFactorEnabled = false,
         CreatedAt = DateTimeOffset.UtcNow,
         NormalizedEmail = adminEmail.ToUpperInvariant(),
         NormalizedUserName = adminEmail.ToUpperInvariant()
