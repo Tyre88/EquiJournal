@@ -101,7 +101,11 @@ dotnet run --project tools/Equine.Import -- --owners owners.csv --horses horses.
 
 ## CI/CD
 
-GitHub Actions: format, sårbarhetsaudit, tester, Angular, Docker-build. Dependabot veckovis.
+**Automatiserad CI körs inte just nu.** GitHub Actions kör bara workflows i `.github/workflows/`; vår pipeline ligger avsiktligt i [`.github/disabled-workflows/ci.yml`](.github/disabled-workflows/ci.yml) och triggas därför inte vid push eller pull request.
+
+Kör lokalt innan merge: `dotnet format --verify-no-changes`, `dotnet test`, `npm run build` i `web/`. Se den inaktiverade workflow-filen för hela checklistan (format, sårbarhetsaudit, Angular, Docker-build m.m.).
+
+Dependabot öppnar fortfarande veckovisa uppdaterings-PR:er (`.github/dependabot.yml`).
 
 ## License
 

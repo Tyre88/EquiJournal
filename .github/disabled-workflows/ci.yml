@@ -1,5 +1,5 @@
-# Disabled — GitHub only runs files in .github/workflows/.
-# Move this file back to .github/workflows/ci.yml to re-enable CI/CD.
+# Intentionally disabled: GitHub only runs workflows under .github/workflows/.
+# Move to .github/workflows/ci.yml to re-enable (fix known issues first — see repo docs).
 
 name: CI/CD
 
