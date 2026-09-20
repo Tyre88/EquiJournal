@@ -13,7 +13,7 @@ import { HttpClient } from '@angular/common/http';
 import { ConfirmService, ToastService } from '@equijournal/ui';
 import { environment } from '../../../environments/environment';
 import { AnatomyMapComponent } from '../../journals/anatomy-map/anatomy-map.component';
-import { DEFAULT_FINDING_OPTIONS } from '../../journals/anatomy-map/anatomy-map.types';
+import { DEFAULT_FINDING_OPTIONS, normalizeTemplateSectionType } from '../../journals/anatomy-map/anatomy-map.types';
 
 const API_URL = environment.apiUrl;
 const DEFAULT_FINDINGS = DEFAULT_FINDING_OPTIONS.join(', ');
@@ -26,7 +26,7 @@ export interface TemplateSection {
   id: string;
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'bodymap' | 'anatomy-map';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'anatomy-map';
   options?: string;
   minValue?: number | null;
   maxValue?: number | null;
@@ -121,7 +121,6 @@ interface TemplateData {
                         <option value="multiselect">Flerval</option>
                         <option value="checkbox">Kryssruta</option>
                         <option value="date">Datum</option>
-                        <option value="bodymap">Kroppskarta</option>
                         <option value="anatomy-map">Anatomikarta</option>
                       </select>
                     </div>
@@ -272,9 +271,6 @@ interface TemplateData {
                     @case ('date') {
                       <input type="date" readonly />
                     }
-                    @case ('bodymap') {
-                      <div class="bodymap-placeholder">Kroppskarta (interaktiv)</div>
-                    }
                     @case ('anatomy-map') {
                       <app-anatomy-map [readonly]="true" [presetId]="section.preset || 'horse-muscles-standard'" />
                     }
@@ -385,10 +381,6 @@ interface TemplateData {
       padding: 0.55rem 0.75rem; border: 1px solid var(--color-border-strong);
       border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text);
     }
-    .bodymap-placeholder {
-      padding: 1rem; border: 1px dashed var(--color-border-strong);
-      border-radius: var(--radius-sm); color: var(--color-text-muted); text-align: center;
-    }
   `]
 })
 export class TemplateBuilderComponent implements OnInit {
@@ -409,7 +401,7 @@ export class TemplateBuilderComponent implements OnInit {
   anatomyImageBusy = signal<string | null>(null);
   anatomyPreviewUrls = signal<Record<string, string>>({});
 
-  private typeOptions = ['text', 'textarea', 'number', 'select', 'multiselect', 'checkbox', 'date', 'bodymap', 'anatomy-map'];
+  private typeOptions = ['text', 'textarea', 'number', 'select', 'multiselect', 'checkbox', 'date', 'anatomy-map'];
 
   ngOnInit(): void {
     if (this.initialTemplate()) {
@@ -420,7 +412,7 @@ export class TemplateBuilderComponent implements OnInit {
             id: s.id || generateId(),
             key: s.key || `section_${s.id || generateId()}`,
             label: s.label,
-            type: s.type,
+            type: normalizeTemplateSectionType(s.type) as TemplateSection['type'],
             options: Array.isArray(s.options) ? (s.options as unknown as string[]).join(', ') : s.options,
             minValue: s.minValue,
             maxValue: s.maxValue,
@@ -584,7 +576,7 @@ export class TemplateBuilderComponent implements OnInit {
         id: s.id,
         key: s.key || `section_${Date.now()}`,
         label: value.label || s.label,
-        type: value.type || s.type,
+        type: normalizeTemplateSectionType(value.type || s.type) as TemplateSection['type'],
         options: (value.options !== '' && value.options != null) ? value.options : undefined,
         minValue: value.min !== '' && value.min != null ? Number(value.min) : null,
         maxValue: value.max !== '' && value.max != null ? Number(value.max) : null,

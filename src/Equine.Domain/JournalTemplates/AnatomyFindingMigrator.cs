@@ -24,6 +24,17 @@ public static class AnatomyFindingMigrator
                 continue;
 
             var type = sectionObj["type"]?.GetValue<string>();
+            if (string.Equals(type, "bodymap", StringComparison.OrdinalIgnoreCase))
+            {
+                sectionObj["type"] = "anatomy-map";
+                if (sectionObj["preset"] is null)
+                    sectionObj["preset"] = "horse-muscles-standard";
+                if (sectionObj["findingOptions"] is null)
+                    sectionObj["findingOptions"] = ToJsonArray(FindingOptionsDefaults.CurrentDefault);
+                changed = true;
+                continue;
+            }
+
             if (!string.Equals(type, "anatomy-map", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -78,6 +89,13 @@ public static class AnatomyFindingMigrator
         var changed = false;
         foreach (var prop in obj.ToList())
         {
+            if (TryMigrateBodyMapValue(prop.Value, out var bodyMapReplacement))
+            {
+                obj[prop.Key] = bodyMapReplacement;
+                changed = true;
+                continue;
+            }
+
             if (TryMigrateAnatomyValue(prop.Value, out var replacement))
             {
                 if (replacement is not null)
@@ -87,6 +105,55 @@ public static class AnatomyFindingMigrator
         }
 
         return changed ? root.ToJsonString() : null;
+    }
+
+    private static bool TryMigrateBodyMapValue(JsonNode? value, out JsonNode? replacement)
+    {
+        replacement = null;
+        JsonObject? obj = value as JsonObject;
+        if (obj is null && value is JsonValue val && val.TryGetValue<string>(out var raw)
+            && !string.IsNullOrWhiteSpace(raw) && raw[0] == '{')
+        {
+            try { obj = JsonNode.Parse(raw) as JsonObject; }
+            catch (JsonException) { return false; }
+        }
+
+        if (obj is null || obj["markers"] is not JsonArray markers || markers.Count == 0)
+            return false;
+
+        var annotations = new JsonArray();
+        var index = 0;
+        foreach (var marker in markers)
+        {
+            if (marker is not JsonObject m)
+                continue;
+
+            var id = m["id"]?.GetValue<string>() ?? index.ToString();
+            var label = m["label"]?.GetValue<string>()?.Trim();
+            if (string.IsNullOrWhiteSpace(label))
+                label = $"Markering {index + 1}";
+
+            var side = m["side"]?.GetValue<string>() is "R" or "L" ? m["side"]!.GetValue<string>()! : "L";
+            var note = m["note"]?.GetValue<string>() ?? "";
+
+            annotations.Add(new JsonObject
+            {
+                ["regionId"] = $"legacy-bodymap-{id}",
+                ["label"] = label,
+                ["side"] = side,
+                ["finding"] = label,
+                ["note"] = note
+            });
+            index++;
+        }
+
+        replacement = new JsonObject
+        {
+            ["preset"] = "horse-muscles-standard",
+            ["annotations"] = annotations,
+            ["strokes"] = new JsonArray()
+        };
+        return true;
     }
 
     private static bool TryMigrateAnatomyValue(JsonNode? value, out JsonNode? replacement)

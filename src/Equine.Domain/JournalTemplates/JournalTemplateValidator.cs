@@ -6,7 +6,7 @@ public static class JournalTemplateValidator
 {
     public static readonly HashSet<string> AllowedFieldTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "text", "textarea", "number", "select", "multiselect", "checkbox", "date", "bodymap", "anatomy-map"
+        "text", "textarea", "number", "select", "multiselect", "checkbox", "date", "anatomy-map"
     };
 
     public static readonly HashSet<string> AllowedAnatomyPresets = new(StringComparer.OrdinalIgnoreCase)
