@@ -8,7 +8,7 @@ using Equine.Domain.Locations;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Audit;
-using Equine.Infrastructure.Email;
+using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Scheduling;
 using Equine.Infrastructure.Tokens;
 using Equine.Infrastructure.Tenancy;
@@ -29,7 +29,7 @@ public sealed class PublicBookingService
     private readonly LocationResolver _locations;
     private readonly ISlotCache _cache;
     private readonly IAuditWriter _audit;
-    private readonly IBookingMailer _mailer;
+    private readonly BookingNotifier _notifier;
     private readonly PublicBookingTokenService _tokens;
     private readonly WidgetSettingsService _settings;
     private readonly PractitionerResolver _practitioner;
@@ -42,7 +42,7 @@ public sealed class PublicBookingService
         LocationResolver locations,
         ISlotCache cache,
         IAuditWriter audit,
-        IBookingMailer mailer,
+        BookingNotifier notifier,
         PublicBookingTokenService tokens,
         WidgetSettingsService settings,
         PractitionerResolver practitioner,
@@ -54,7 +54,7 @@ public sealed class PublicBookingService
         _locations = locations;
         _cache = cache;
         _audit = audit;
-        _mailer = mailer;
+        _notifier = notifier;
         _tokens = tokens;
         _settings = settings;
         _practitioner = practitioner;
@@ -228,7 +228,7 @@ public sealed class PublicBookingService
         await _db.SaveChangesAsync(cancellationToken);
         _cache.InvalidateAll();
 
-        await _mailer.SendVerificationAsync(line, email, owner.Name, cancellationToken);
+        await _notifier.OnWidgetRequestedAsync(line, email, owner.Name, cancellationToken);
         LogAttempt("created", ip, treatment.Id, email);
         return reference;
     }
@@ -257,11 +257,11 @@ public sealed class PublicBookingService
         {
             line.Approve();
             line.Visit.RefreshOccupancy();
-            await _mailer.SendConfirmationAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
+            await _notifier.OnConfirmedAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
         }
         else
         {
-            await _mailer.SendPractitionerApprovalAsync(line, cancellationToken);
+            await _notifier.OnPractitionerApprovalNeededAsync(line, cancellationToken);
         }
 
         await _audit.WriteAsync("public", "PUBLIC_BOOKING_VERIFY", nameof(BookingLine), line.Id.ToString(), null, line.Status.ToString(), cancellationToken);
@@ -303,7 +303,7 @@ public sealed class PublicBookingService
         await _audit.WriteAsync("public", "PUBLIC_BOOKING_CANCEL", nameof(BookingLine), line.Id.ToString(), null, reason, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
         _cache.InvalidateAll();
-        await _mailer.SendCancelledAsync(line, cancellationToken);
+        await _notifier.OnCancelledAsync(line, cancellationToken);
     }
 
     public async Task RescheduleAsync(string token, DateTimeOffset startsAt, CancellationToken cancellationToken = default)
@@ -332,14 +332,14 @@ public sealed class PublicBookingService
         _cache.InvalidateAll();
         await _db.Entry(line).Reference(l => l.Owner).LoadAsync(cancellationToken);
         await _db.Entry(line).Reference(l => l.Horse).LoadAsync(cancellationToken);
-        await _mailer.SendRescheduledAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
+        await _notifier.OnRescheduledAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
     }
 
     public async Task NotifyApprovedAsync(BookingLine line, CancellationToken cancellationToken = default)
     {
         if (line.Source != BookingSource.Widget) return;
         var owner = line.Owner ?? await _db.Owners.FirstAsync(o => o.Id == line.OwnerId, cancellationToken);
-        await _mailer.SendConfirmationAsync(line, owner.Email, owner.Name, cancellationToken);
+        await _notifier.OnConfirmedAsync(line, owner.Email, owner.Name, cancellationToken);
     }
 
     private async Task<BookingLine?> ResolveLineAsync(string token, string purpose, CancellationToken cancellationToken)
