@@ -78,7 +78,6 @@ public static class ServiceCollectionExtensions
                 policy.RequireAssertion(ctx => ctx.User.IsInRole("Admin") || ctx.User.IsInRole("Practitioner") || ctx.User.IsInRole("Assistant")))
             .AddPolicy("CanAdminister", policy => policy.RequireRole("Admin"));
 
-        services.AddScoped<Auth.ITotpService, Auth.TotpService>();
         services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.HttpOnly = true;

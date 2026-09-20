@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { Api } from '../api';
@@ -10,7 +10,7 @@ import { ThemePreference, ThemeService } from '../theme.service';
   standalone: true,
   imports: [FormsModule, EjPageHeaderComponent],
   template: `
-    <ej-page-header title="Konto" subtitle="Namn, e-post, lösenord och tvåfaktorsinloggning." />
+    <ej-page-header title="Konto" subtitle="Namn, e-post och lösenord." />
     <div class="card">
       <h2 class="section-title">Utseende</h2>
       <p class="muted">Välj ljust, mörkt eller samma som enheten.</p>
@@ -49,19 +49,6 @@ import { ThemePreference, ThemeService } from '../theme.service';
       <button type="button" class="btn-secondary" (click)="changePassword()">Uppdatera lösenord</button>
     </div>
     <div class="card">
-      <h2 class="section-title">Tvåfaktorsinloggning</h2>
-      <p>Status: {{ twoFactor() ? 'Aktiverad' : 'Inte aktiverad' }}</p>
-      <button type="button" class="btn-secondary" (click)="enrol2fa()">Starta aktivering</button>
-      @if (secret()) {
-        <p class="muted">Hemlighet: {{ secret() }}. Bekräfta med kod från appen.</p>
-        @if (provisioningUri()) {
-          <p><a [href]="provisioningUri()">Öppna i authenticator-app</a></p>
-        }
-        <input class="input" [(ngModel)]="totp" placeholder="000000" />
-        <button type="button" class="btn-primary" (click)="verify2fa()">Bekräfta</button>
-      }
-    </div>
-    <div class="card">
       <h2 class="section-title">Aviseringar i webbläsaren</h2>
       <p class="muted">Få push när fliken är i bakgrunden (ny förfrågan, osignerad journal, misslyckad avisering).</p>
       <button type="button" class="btn-secondary" (click)="enablePush()">Aktivera aviseringar i webbläsaren</button>
@@ -86,16 +73,11 @@ export class AccountSettingsComponent implements OnInit {
   email = '';
   currentPassword = '';
   newPassword = '';
-  totp = '';
-  twoFactor = signal(false);
-  secret = signal('');
-  provisioningUri = signal('');
 
   ngOnInit(): void {
     const user = this.auth.currentUser();
     this.displayName = user?.displayName ?? '';
     this.email = user?.email ?? '';
-    this.twoFactor.set(!!user?.twoFactorEnabled);
   }
 
   saveProfile(): void {
@@ -113,16 +95,6 @@ export class AccountSettingsComponent implements OnInit {
         this.newPassword = '';
       },
       error: () => this.toast.error('Kunde inte byta lösenord.')
-    });
-  }
-
-  enrol2fa(): void {
-    this.api.post<{ secret: string; provisioningUri: string }>('/api/app/auth/enrol-2fa', {}).subscribe({
-      next: res => {
-        this.secret.set(res.secret ?? '');
-        this.provisioningUri.set(res.provisioningUri ?? '');
-      },
-      error: () => this.toast.error('Kunde inte starta 2FA.')
     });
   }
 
@@ -156,16 +128,6 @@ export class AccountSettingsComponent implements OnInit {
         next: () => this.toast.success('Webbläsaraviseringar är aktiverade.'),
         error: () => this.toast.error('Kunde inte spara prenumerationen.')
       });
-    });
-  }
-
-  verify2fa(): void {
-    this.api.post('/api/app/auth/verify-2fa', { code: this.totp }).subscribe({
-      next: () => {
-        this.twoFactor.set(true);
-        this.toast.success('2FA är aktiverad.');
-      },
-      error: () => this.toast.error('Ogiltig kod.')
     });
   }
 }

@@ -46,8 +46,7 @@ public static class AuthEndpoints
             {
                 accessToken = tokens.AccessToken,
                 refreshToken = tokens.RefreshToken,
-                expires = tokens.Expires,
-                requiresTwoFactor = false
+                expires = tokens.Expires
             });
         }).WithName("Login");
 
@@ -76,59 +75,6 @@ public static class AuthEndpoints
                 expires = tokens.Expires
             });
         }).WithName("RefreshToken");
-
-        group.MapPost("/enrol-2fa", async (
-            HttpContext context,
-            UserManager<ApplicationUser> userManager,
-            ITotpService totpService,
-            IAuditWriter auditWriter, CancellationToken ct) =>
-        {
-            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId is null) return Results.Unauthorized();
-            var user = await userManager.FindByIdAsync(userId);
-            if (user is null) return Results.NotFound(new { error = "user_not_found" });
-
-            var provisioningUri = totpService.GenerateProvisioningUri(user);
-            await userManager.UpdateAsync(user);
-            await auditWriter.WriteAsync(userId, "ENROL_2FA", "ApplicationUser", userId, null, null, ct);
-            return Results.Ok(new EnrolTotpResponse(provisioningUri, user.TotpSecret ?? ""));
-        }).RequireAuthorization().WithName("Enrol2FA");
-
-        group.MapPost("/verify-2fa", async (
-            [FromBody] VerifyTotpRequest request,
-            HttpContext context,
-            UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
-            IConfiguration configuration,
-            ITotpService totpService,
-            IAuditWriter auditWriter, CancellationToken ct) =>
-        {
-            var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId is null) return Results.Unauthorized();
-            var user = await userManager.FindByIdAsync(userId);
-            if (user is null) return Results.NotFound(new { error = "user_not_found" });
-            if (string.IsNullOrEmpty(user.TotpSecret))
-                return Results.BadRequest(new { error = "no_secret_configured" });
-
-            var isValid = totpService.VerifyTotp(user.TotpSecret, request.Code);
-            if (!isValid) return Results.BadRequest(new { error = "invalid_code" });
-
-            user.TwoFactorEnabled = true;
-            user.TotpSecret = null;
-            user.IsFirstLogin = false;
-            await userManager.UpdateAsync(user);
-            await signInManager.SignInAsync(user, isPersistent: false);
-
-            var tokens = await IssueTokens(user, userManager, configuration);
-            await auditWriter.WriteAsync(userId, "VERIFY_2FA", "ApplicationUser", userId, null, null, ct);
-
-            return Results.Ok(new
-            {
-                accessToken = tokens.AccessToken,
-                refreshToken = tokens.RefreshToken,
-                expires = tokens.Expires
-            });
-        }).RequireAuthorization().WithName("Verify2FA");
 
         group.MapPost("/logout", async (
             HttpContext context,
@@ -198,7 +144,6 @@ public static class AuthEndpoints
             new("displayName", user.DisplayName ?? user.UserName ?? string.Empty),
             new("sub", user.Id.ToString()),
             new("isFirstLogin", user.IsFirstLogin.ToString()),
-            new("twoFactorEnabled", user.TwoFactorEnabled.ToString()),
             new("tenantId", user.TenantId.ToString())
         };
         foreach (var role in roles)

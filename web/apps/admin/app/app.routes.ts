@@ -5,7 +5,6 @@ export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', title: 'Logga in', loadComponent: () => import('./login/login.component').then(m => m.LoginComponent) },
   { path: 'register', title: 'Skapa verksamhet', loadComponent: () => import('./register/register.component').then(m => m.RegisterComponent) },
-  { path: '2fa', title: 'Tvåfaktorsverifiering', loadComponent: () => import('./two-factor/two-factor.component').then(m => m.TwoFactorComponent) },
   {
     path: '',
     canActivate: [authGuard],

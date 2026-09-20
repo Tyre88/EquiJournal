@@ -87,12 +87,8 @@ export class LoginComponent {
     if (!email || !password) return;
 
     this.authService.login(email, password).subscribe({
-      next: (response) => {
-        if (response.requiresTwoFactor) {
-          this.router.navigate(['/2fa']);
-        } else {
-          this.router.navigate(['/schema']);
-        }
+      next: () => {
+        this.router.navigate(['/schema']);
       },
       error: () => {
         this.errorMessage.set('Ogiltiga inloggningsuppgifter.');
