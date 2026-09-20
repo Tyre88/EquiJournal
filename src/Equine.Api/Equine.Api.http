@@ -1,6 +1,16 @@
 @Equine.Api_HostAddress = http://localhost:5087
 
-GET {{Equine.Api_HostAddress}}/weatherforecast/
+GET {{Equine.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Equine.Api_HostAddress}}/health/ready
+Accept: application/json
+
+###
+
+GET {{Equine.Api_HostAddress}}/api/public/ping
 Accept: application/json
 
 ###
