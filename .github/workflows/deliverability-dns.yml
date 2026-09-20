@@ -1,0 +1,26 @@
+name: Deliverability DNS
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  dns:
+    name: SPF and DMARC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliverability DNS check
+        env:
+          SENDING_DOMAIN: ${{ vars.SENDING_DOMAIN }}
+        run: |
+          if [ -z "$SENDING_DOMAIN" ] || echo "$SENDING_DOMAIN" | grep -qiE 'localhost|\.local$'; then
+            echo "Notifications:SendingDomain not set or localhost — skip"
+            exit 0
+          fi
+          SPF=$(dig +short TXT "$SENDING_DOMAIN" | tr -d '"')
+          DMARC=$(dig +short TXT "_dmarc.$SENDING_DOMAIN" | tr -d '"')
+          echo "SPF=$SPF"
+          echo "DMARC=$DMARC"
+          echo "$SPF" | grep -qi "v=spf1" || { echo "::error::Missing or invalid SPF for $SENDING_DOMAIN"; exit 1; }
+          echo "$DMARC" | grep -qi "v=DMARC1" || { echo "::error::Missing or invalid DMARC for $SENDING_DOMAIN"; exit 1; }

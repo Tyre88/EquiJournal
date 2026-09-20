@@ -260,9 +260,12 @@ public static class AuthEndpoints
         var tokenHandler = new JwtSecurityTokenHandler();
         var parameters = new TokenValidationParameters
         {
-            ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = false,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = false,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings["Issuer"], ValidAudience = jwtSettings["Audience"],
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
 

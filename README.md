@@ -101,7 +101,18 @@ dotnet run --project tools/Equine.Import -- --owners owners.csv --horses horses.
 
 ## CI/CD
 
-GitHub Actions: format, sårbarhetsaudit, tester, Angular, Docker-build. Dependabot veckovis.
+GitHub Actions körs från [`.github/workflows/ci.yml`](.github/workflows/ci.yml) på push och pull requests mot `main`.
+
+| Jobb | När | Vad |
+|------|-----|-----|
+| **validate** | Varje PR och push | `dotnet format`, .NET build, domänisolering, enhetstester, Angular-build, widget-loader |
+| **publish** | Push till `main` | Docker-build (ingen push till registry ännu) |
+
+**Medvetet utanför första återaktiveringen:** integrations­tester (Testcontainers/Docker) och `ng lint` (saknar `@angular-eslint`-paket). Se workflow-kommentarer och PR-beskrivning.
+
+E-post-DNS kontrolleras även veckovis via [`.github/workflows/deliverability-dns.yml`](.github/workflows/deliverability-dns.yml) (inte på varje PR).
+
+Dependabot körs veckovis via [`.github/dependabot.yml`](.github/dependabot.yml).
 
 ## License
 

@@ -26,16 +26,16 @@ public class HistoricImportTests : IAsyncLifetime
         var (db, tenant) = await CreateDb();
         await using (db)
         {
-        var importer = new HistoricImportService(db, tenant);
-        var report = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: false);
+            var importer = new HistoricImportService(db, tenant);
+            var report = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: false);
 
-        report.DryRun.ShouldBeTrue();
-        report.OwnersCreated.ShouldBe(1);
-        report.HorsesCreated.ShouldBe(1);
-        report.JournalsCreated.ShouldBe(1);
-        (await db.Owners.CountAsync()).ShouldBe(0);
-        (await db.Horses.CountAsync()).ShouldBe(0);
-        (await db.JournalEntries.CountAsync()).ShouldBe(0);
+            report.DryRun.ShouldBeTrue();
+            report.OwnersCreated.ShouldBe(1);
+            report.HorsesCreated.ShouldBe(1);
+            report.JournalsCreated.ShouldBe(1);
+            (await db.Owners.CountAsync()).ShouldBe(0);
+            (await db.Horses.CountAsync()).ShouldBe(0);
+            (await db.JournalEntries.CountAsync()).ShouldBe(0);
         }
     }
 
@@ -45,19 +45,19 @@ public class HistoricImportTests : IAsyncLifetime
         var (db, tenant) = await CreateDb();
         await using (db)
         {
-        var importer = new HistoricImportService(db, tenant);
-        var report = await importer.ImportAsync(
-            SampleOwners(), SampleHorses(), SampleJournals(), commit: true, signedByOverride: "Victor (import)");
+            var importer = new HistoricImportService(db, tenant);
+            var report = await importer.ImportAsync(
+                SampleOwners(), SampleHorses(), SampleJournals(), commit: true, signedByOverride: "Victor (import)");
 
-        report.DryRun.ShouldBeFalse();
-        (await db.Owners.CountAsync()).ShouldBe(1);
-        (await db.Horses.CountAsync()).ShouldBe(1);
-        var journal = await db.JournalEntries.SingleAsync();
-        journal.Status.ShouldBe(JournalStatus.Signed);
-        journal.Source.ShouldBe(JournalSource.Import);
-        journal.SignedBy.ShouldBe("Victor (import)");
-        journal.PerformedAt.Year.ShouldBe(2023);
-        journal.Anamnes.ShouldBe("stel");
+            report.DryRun.ShouldBeFalse();
+            (await db.Owners.CountAsync()).ShouldBe(1);
+            (await db.Horses.CountAsync()).ShouldBe(1);
+            var journal = await db.JournalEntries.SingleAsync();
+            journal.Status.ShouldBe(JournalStatus.Signed);
+            journal.Source.ShouldBe(JournalSource.Import);
+            journal.SignedBy.ShouldBe("Victor (import)");
+            journal.PerformedAt.Year.ShouldBe(2023);
+            journal.Anamnes.ShouldBe("stel");
         }
     }
 
@@ -67,16 +67,16 @@ public class HistoricImportTests : IAsyncLifetime
         var (db, tenant) = await CreateDb();
         await using (db)
         {
-        var importer = new HistoricImportService(db, tenant);
-        await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
-        var second = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
+            var importer = new HistoricImportService(db, tenant);
+            await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
+            var second = await importer.ImportAsync(SampleOwners(), SampleHorses(), SampleJournals(), commit: true);
 
-        second.OwnersCreated.ShouldBe(0);
-        second.HorsesCreated.ShouldBe(0);
-        second.JournalsCreated.ShouldBe(0);
-        second.Skipped.Count.ShouldBeGreaterThan(0);
-        (await db.Owners.CountAsync()).ShouldBe(1);
-        (await db.JournalEntries.CountAsync()).ShouldBe(1);
+            second.OwnersCreated.ShouldBe(0);
+            second.HorsesCreated.ShouldBe(0);
+            second.JournalsCreated.ShouldBe(0);
+            second.Skipped.Count.ShouldBeGreaterThan(0);
+            (await db.Owners.CountAsync()).ShouldBe(1);
+            (await db.JournalEntries.CountAsync()).ShouldBe(1);
         }
     }
 

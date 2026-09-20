@@ -593,7 +593,7 @@ async Task EnsureExtensionAsync(EquineDbContext context, string name)
 {
     try
     {
-        await context.Database.ExecuteSqlRawAsync($"CREATE EXTENSION IF NOT EXISTS {name};");
+        await context.Database.ExecuteSqlAsync($"CREATE EXTENSION IF NOT EXISTS {name};");
     }
     catch (Npgsql.PostgresException ex) when (ex.SqlState is "23505" or "42710")
     {
