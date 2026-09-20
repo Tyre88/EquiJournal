@@ -3,7 +3,7 @@ using Equine.Domain.Entities;
 using Equine.Domain.Scheduling;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Audit;
-using Equine.Infrastructure.Email;
+using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Scheduling;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -17,7 +17,7 @@ public sealed class BookingCommandService
     private readonly SlotQueryService _slots;
     private readonly ISlotCache _cache;
     private readonly IAuditWriter _audit;
-    private readonly IBookingMailer _mailer;
+    private readonly BookingNotifier _notifier;
 
     public BookingCommandService(
         EquineDbContext db,
@@ -25,14 +25,14 @@ public sealed class BookingCommandService
         SlotQueryService slots,
         ISlotCache cache,
         IAuditWriter audit,
-        IBookingMailer mailer)
+        BookingNotifier notifier)
     {
         _db = db;
         _locations = locations;
         _slots = slots;
         _cache = cache;
         _audit = audit;
-        _mailer = mailer;
+        _notifier = notifier;
     }
 
     public async Task<Visit> CreateManualAsync(
@@ -182,7 +182,7 @@ public sealed class BookingCommandService
             await _db.Entry(line).Reference(l => l.Owner).LoadAsync(cancellationToken);
             await _db.Entry(line).Reference(l => l.Horse).LoadAsync(cancellationToken);
             if (line.Owner is not null)
-                await _mailer.SendRescheduledAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
+                await _notifier.OnRescheduledAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
         }
     }
 
@@ -208,7 +208,7 @@ public sealed class BookingCommandService
         await _db.SaveChangesAsync(cancellationToken);
         _cache.InvalidateAll();
         if (line.Source == BookingSource.Widget)
-            await _mailer.SendConfirmationAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
+            await _notifier.OnConfirmedAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
     }
 
     public async Task CancelAsync(Guid bookingId, Guid actorId, string? reason, CancellationToken cancellationToken = default)
@@ -221,7 +221,7 @@ public sealed class BookingCommandService
         await _db.SaveChangesAsync(cancellationToken);
         _cache.InvalidateAll();
         await _db.Entry(line).Reference(l => l.Owner).LoadAsync(cancellationToken);
-        await _mailer.SendCancelledAsync(line, cancellationToken);
+        await _notifier.OnCancelledAsync(line, cancellationToken);
     }
 
     public async Task MarkNoShowAsync(Guid bookingId, Guid actorId, CancellationToken cancellationToken = default)

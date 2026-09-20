@@ -109,7 +109,6 @@ builder.Services.AddScoped<WidgetSettingsService>();
 builder.Services.AddScoped<PractitionerResolver>();
 builder.Services.AddScoped<PublicBookingService>();
 builder.Services.AddScoped<PublicBookingRateGuard>();
-builder.Services.AddScoped<IBookingMailer, BookingMailer>();
 builder.Services.AddScoped<ExpireUnverifiedBookingsService>();
 builder.Services.AddScoped<PracticeSettingsService>();
 builder.Services.AddScoped<NotificationSettingsService>();

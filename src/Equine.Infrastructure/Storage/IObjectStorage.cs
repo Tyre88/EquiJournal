@@ -14,5 +14,4 @@ public class ObjectStorageOptions
     public string AccessKey { get; set; } = "minioadmin";
     public string SecretKey { get; set; } = "minioadmin";
     public string Bucket { get; set; } = "equine-attachments";
-    public string? PublicBaseUrl { get; set; }
 }
