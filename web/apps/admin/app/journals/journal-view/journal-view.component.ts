@@ -6,7 +6,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { EntityHistoryComponent } from '../../audit/entity-history.component';
-import { BodymapComponent, BodyMapMarker } from '../bodymap/bodymap.component';
 import { AnatomyMapComponent } from '../anatomy-map/anatomy-map.component';
 import { AnatomyMapValue, isAnatomyMapValue, parseAnatomyMapValue } from '../anatomy-map/anatomy-map.types';
 import {
@@ -60,7 +59,7 @@ interface JournalData {
 @Component({
   selector: 'app-journal-view',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent, EntityHistoryComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, AnatomyMapComponent, EjPageHeaderComponent, EntityHistoryComponent],
   template: `
     <div class="page">
       <ej-page-header title="Journal" backHref="/journals">
@@ -160,7 +159,7 @@ interface JournalData {
             @for (entry of templateEntries(); track entry.key) {
               <div class="field">
                 <div class="label">{{ entry.label }}</div>
-                @if (asAnatomyMap(entry.value); as anatomy) {
+                @if (templateMapValue(entry.value); as anatomy) {
                   <app-anatomy-map
                     [presetId]="anatomy.preset"
                     [customImageUrl]="anatomyImageUrls()[entry.key] || null"
@@ -168,8 +167,6 @@ interface JournalData {
                     [strokes]="anatomy.strokes"
                     [readonly]="true"
                   />
-                } @else if (asBodyMapMarkers(entry.value); as markers) {
-                  <app-bodymap [markers]="markers" [readonly]="true" />
                 } @else {
                   <div class="value">{{ formatTemplateValue(entry.value) }}</div>
                 }
@@ -449,17 +446,9 @@ export class JournalViewComponent implements OnInit {
     return String(value);
   }
 
-  asAnatomyMap(value: unknown): AnatomyMapValue | null {
+  templateMapValue(value: unknown): AnatomyMapValue | null {
     if (!isAnatomyMapValue(value)) return null;
     return parseAnatomyMapValue(value);
-  }
-
-  asBodyMapMarkers(value: unknown): BodyMapMarker[] | null {
-    if (!value || typeof value !== 'object') return null;
-    const raw = Array.isArray(value) ? value : (value as { markers?: unknown }).markers;
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    if (!raw.every(m => m && typeof m === 'object' && 'x' in m && 'y' in m)) return null;
-    return raw as BodyMapMarker[];
   }
 
   openAttachment(journalId: string, att: AttachmentItem): void {

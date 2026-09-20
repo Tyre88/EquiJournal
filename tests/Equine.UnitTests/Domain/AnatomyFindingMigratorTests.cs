@@ -9,6 +9,41 @@ namespace Equine.UnitTests.Domain;
 public class AnatomyFindingMigratorTests
 {
     [Fact]
+    public void Bodymap_template_section_is_upgraded_to_anatomy_map()
+    {
+        var json = """
+            {"version":1,"sections":[{"key":"kroppskarta","label":"Markerade områden","type":"bodymap"}]}
+            """;
+
+        var migrated = AnatomyFindingMigrator.TryMigrateTemplateJson(json);
+
+        migrated.ShouldNotBeNull();
+        using var doc = JsonDocument.Parse(migrated);
+        var section = doc.RootElement.GetProperty("sections")[0];
+        section.GetProperty("type").GetString().ShouldBe("anatomy-map");
+        section.GetProperty("preset").GetString().ShouldBe("horse-muscles-standard");
+        ReadFindingOptions(migrated).ShouldBe(FindingOptionsDefaults.CurrentDefault);
+    }
+
+    [Fact]
+    public void Bodymap_journal_data_is_upgraded_to_anatomy_map()
+    {
+        var json = """
+            {"kroppskarta":{"markers":[{"id":"m1","x":100,"y":200,"side":"L","label":"1","note":"Öm"}]}}
+            """;
+
+        var migrated = AnatomyFindingMigrator.TryMigrateJournalDataJson(json);
+
+        migrated.ShouldNotBeNull();
+        using var doc = JsonDocument.Parse(migrated);
+        var value = doc.RootElement.GetProperty("kroppskarta");
+        value.GetProperty("preset").GetString().ShouldBe("horse-muscles-standard");
+        var annotation = value.GetProperty("annotations")[0];
+        annotation.GetProperty("finding").GetString().ShouldBe("1");
+        annotation.GetProperty("note").GetString().ShouldBe("Öm");
+    }
+
+    [Fact]
     public void Legacy_default_template_is_upgraded_to_current_default()
     {
         var json = """

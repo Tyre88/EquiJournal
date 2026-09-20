@@ -6,13 +6,13 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { environment } from '../../../environments/environment';
 import { ConfirmService, EjPageHeaderComponent, ToastService } from '@equijournal/ui';
-import { BodymapComponent, BodyMapMarker } from '../bodymap/bodymap.component';
 import { AnatomyMapComponent } from '../anatomy-map/anatomy-map.component';
 import {
   AnatomyAnnotation,
   AnatomyStroke,
   DEFAULT_ANATOMY_PRESET,
   DEFAULT_FINDING_OPTIONS,
+  isTemplateMapSection,
   parseAnatomyMapValue
 } from '../anatomy-map/anatomy-map.types';
 import {
@@ -27,7 +27,7 @@ const API_URL = environment.apiUrl;
 export interface TemplateField {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'bodymap' | 'anatomy-map';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'anatomy-map';
   options?: string[];
   min?: number;
   max?: number;
@@ -81,7 +81,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 @Component({
   selector: 'app-journal-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, AnatomyMapComponent, EjPageHeaderComponent],
   template: `
     <div class="page">
       <ej-page-header [title]="isNew() ? 'Ny journal' : 'Redigera journal'" backHref="/journals">
@@ -332,17 +332,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
                           }
                         </div>
                       }
-                      @if (field.type === 'bodymap') {
-                        <div class="bodymap-field">
-                          <app-bodymap
-                            [markers]="bodyMapMarkers(field.key)"
-                            (add)="onBodyMapAdd(field.key, $event)"
-                            (labelChange)="onBodyMapLabel(field.key, $event)"
-                            (noteChange)="onBodyMapNote(field.key, $event)"
-                            (remove)="onBodyMapRemove(field.key, $event)"
-                          />
-                        </div>
-                      }
                       @if (field.type === 'anatomy-map') {
                         <div class="anatomy-field">
                           <app-anatomy-map
@@ -498,19 +487,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     }
   });
 
-  bodymapOpen = signal(false);
-  bodymapFieldKey = signal('');
-  bodymapFieldLabel = computed(() => {
-    const key = this.bodymapFieldKey();
-    const sections = this.templateFields();
-    for (const sec of sections) {
-      for (const f of sec.fields) {
-        if (f.key === key) return f.label;
-      }
-    }
-    return '';
-  });
-
   showSignDialog = signal(false);
   anatomyImageUrls = signal<Record<string, string>>({});
 
@@ -656,20 +632,11 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     for (const section of template.sections) {
       const tplFields: TemplateField[] = [];
 
-      const sectionType = String(section.type ?? '').toLowerCase();
-      const isAnatomy = sectionType === 'anatomy-map' || sectionType === 'anatomymap'
-        || STANDARD_ANATOMY_PRESETS.has(section.preset)
-        || Array.isArray(section.findingOptions);
+      const isAnatomy = isTemplateMapSection(section);
       if (isAnatomy && STANDARD_ANATOMY_PRESETS.has(section.preset || DEFAULT_ANATOMY_PRESET)) {
         continue;
       }
-      if (sectionType === 'bodymap' && !isAnatomy) {
-        tplFields.push({
-          key: section.key,
-          label: section.label,
-          type: 'bodymap'
-        });
-      } else if (isAnatomy) {
+      if (isAnatomy) {
         const anatomyField: TemplateField = {
           key: section.key,
           label: section.label,
@@ -707,7 +674,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
       fields.push({ key: section.key, label: section.label, fields: tplFields });
 
       for (const f of tplFields) {
-        if (f.type === 'bodymap' || f.type === 'anatomy-map') continue;
+        if (f.type === 'anatomy-map') continue;
         if (!this.form.contains('tpl_' + f.key)) {
           if (f.type === 'multiselect') {
             this.form.addControl('tpl_' + f.key, this.fb.control(templateData[section.key] || []));
@@ -751,65 +718,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     if (Object.keys(patch).length > 0) {
       this.form.patchValue(patch);
     }
-  }
-
-  private getBodyMapValue(key: string): string {
-    const ctrl = this.form.get('tpl_' + key);
-    return ctrl?.value ?? '';
-  }
-
-  openBodymap(key: string): void {
-    this.bodymapFieldKey.set(key);
-    this.bodymapOpen.set(true);
-  }
-
-  closeBodymap(): void {
-    this.bodymapOpen.set(false);
-    this.bodymapFieldKey.set('');
-  }
-
-  bodyMapMarkers(key: string): BodyMapMarker[] {
-    const raw = this.form.get('tpl_' + key)?.value;
-    if (!raw) return [];
-    try {
-      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      return parsed.markers ?? [];
-    } catch {
-      return [];
-    }
-  }
-
-  private setBodyMapMarkers(key: string, markers: BodyMapMarker[]): void {
-    let ctrl = this.form.get('tpl_' + key);
-    if (!ctrl) {
-      this.form.addControl('tpl_' + key, this.fb.control(''));
-      ctrl = this.form.get('tpl_' + key);
-    }
-    ctrl?.setValue(JSON.stringify({ markers }));
-  }
-
-  onBodyMapAdd(key: string, ev: { x: number; y: number; side: 'L' | 'R' }): void {
-    const markers = [...this.bodyMapMarkers(key), {
-      id: crypto.randomUUID(),
-      x: ev.x,
-      y: ev.y,
-      side: ev.side,
-      label: `${this.bodyMapMarkers(key).length + 1}`,
-      note: ''
-    }];
-    this.setBodyMapMarkers(key, markers);
-  }
-
-  onBodyMapLabel(key: string, ev: { id: string; label: string }): void {
-    this.setBodyMapMarkers(key, this.bodyMapMarkers(key).map(m => m.id === ev.id ? { ...m, label: ev.label } : m));
-  }
-
-  onBodyMapNote(key: string, ev: { id: string; note: string }): void {
-    this.setBodyMapMarkers(key, this.bodyMapMarkers(key).map(m => m.id === ev.id ? { ...m, note: ev.note } : m));
-  }
-
-  onBodyMapRemove(key: string, id: string): void {
-    this.setBodyMapMarkers(key, this.bodyMapMarkers(key).filter(m => m.id !== id));
   }
 
   anatomyAnnotations(key: string): AnatomyAnnotation[] {
