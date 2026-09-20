@@ -10,7 +10,6 @@
     "build:admin": "ng build admin",
     "build:widget": "ng build widget",
     "build:loader": "npm --prefix ../widget-loader run build && npm --prefix ../widget-loader run size",
-    "generate:api": "ng-openapi-gen --input http://localhost:5087/swagger/v1/swagger.json --output ./libs/api-client/src --classnamepascalcase false",
     "lint": "ng lint",
     "lint:fix": "ng lint --fix"
   },
@@ -37,7 +36,6 @@
     "@angular/compiler-cli": "20.3.30",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^22.0.0",
-    "ng-openapi-gen": "^0.52.0",
     "typescript": "~5.8.0"
   }
 }
