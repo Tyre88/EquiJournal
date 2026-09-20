@@ -2,7 +2,7 @@
 
 Show this table to an inspector. Have a colleague in the field review it before go-live.
 
-Required content (00-CONTEXT / SJVFS 2023:19) mapped to HästJournal.
+Required content (SJVFS 2023:19) mapped to HästJournal.
 
 | Required | System field | Where |
 |---|---|---|
