@@ -19,7 +19,7 @@ public class DatabaseIntegrationTest : IAsyncLifetime
     public async Task DisposeAsync() => await _postgres.StopAsync();
 
     [Fact]
-    public async Task EnsureCreated_CreatesAllTables()
+    public async Task Migrate_CreatesAllTables()
     {
         // Arrange
         var connectionString = _postgres.GetConnectionString();
@@ -39,10 +39,7 @@ public class DatabaseIntegrationTest : IAsyncLifetime
         // Act
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS citext;");
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS btree_gist;");
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
-        await context.Database.EnsureCreatedAsync();
+        await DatabaseSchema.MigrateAsync(context);
 
         // Assert
         var tables = await context.Database
@@ -79,10 +76,7 @@ public class DatabaseIntegrationTest : IAsyncLifetime
         // Act
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS citext;");
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS btree_gist;");
-        await context.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
-        await context.Database.EnsureCreatedAsync();
+        await DatabaseSchema.MigrateAsync(context);
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
         var tenant = new Equine.Domain.Entities.Tenant("Test", "default");

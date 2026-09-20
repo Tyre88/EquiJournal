@@ -88,10 +88,7 @@ public class HistoricImportTests : IAsyncLifetime
         services.AddDbContext<EquineDbContext>(o => o.UseNpgsql(_postgres.GetConnectionString()));
         var sp = services.BuildServiceProvider();
         var db = sp.GetRequiredService<EquineDbContext>();
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS citext;");
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS btree_gist;");
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
-        await db.Database.EnsureCreatedAsync();
+        await DatabaseSchema.MigrateAsync(db);
         var seeded = new Tenant("Test", "default");
         db.Tenants.Add(seeded);
         await db.SaveChangesAsync();

@@ -34,5 +34,5 @@ Enable three PostgreSQL extensions in the initial migration:
 
 ## Implementation Notes
 
-- Extensions are enabled during seeding (`EnsureCreatedAsync`) and in the initial EF Core migration.
+- Extensions are enabled in the initial EF Core migration (`20260920074046_InitialCreate`).
 - Email columns should be declared as `citext` in EF Core mappings.

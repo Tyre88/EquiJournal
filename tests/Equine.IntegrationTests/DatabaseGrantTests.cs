@@ -28,10 +28,7 @@ public class DatabaseGrantTests : IAsyncLifetime
         await using var sp = services.BuildServiceProvider();
         await using var scope = sp.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS citext;");
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS btree_gist;");
-        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
-        await db.Database.EnsureCreatedAsync();
+        await DatabaseSchema.MigrateAsync(db);
 
         var tenant = new Tenant("Grant", "grant");
         db.Tenants.Add(tenant);

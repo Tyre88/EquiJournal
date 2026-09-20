@@ -11,7 +11,20 @@ CI builds the image from [Dockerfile](../Dockerfile) (API + admin + widget + por
 3. Domain + HTTPS (Let’s Encrypt) on Traefik. Force TLS 1.2+ on the entrypoint.
 4. Health check: `GET /health/ready`.
 5. Data Protection keys: persist a volume (magic links break if keys rotate unexpectedly).
-6. Postgres and object storage as separate Dokploy services. App user: `equine_app` after [scripts/prod-grants.sql](../scripts/prod-grants.sql). Schema changes: `equine_migrate` or superuser, then restart the app. **Production does not run `EnsureCreated`.**
+6. Postgres and object storage as separate Dokploy services. App user: `equine_app` after [scripts/prod-grants.sql](../scripts/prod-grants.sql). Schema changes: apply EF migrations as `equine_migrate` (see below), then restart the app. **Production does not auto-migrate on startup.**
+
+### Schema migrations
+
+Apply pending migrations before or during deploy (as `equine_migrate` or superuser):
+
+```bash
+dotnet ef database update \
+  --project src/Equine.Infrastructure/Equine.Infrastructure.csproj \
+  --startup-project src/Equine.Api/Equine.Api.csproj \
+  --connection "$MIGRATE_CONNECTION_STRING"
+```
+
+Existing databases created by the old bootstrap SQL must be **baselined** once: insert a row into `__EFMigrationsHistory` for `20260920074046_InitialCreate` after verifying the live schema matches the migration, then use `database update` for future changes only.
 
 ## Rollback
 

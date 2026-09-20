@@ -97,7 +97,7 @@ dotnet run --project tools/Equine.Import -- --owners owners.csv --horses horses.
 ## Miljöer
 
 - **Development:** `appsettings.Development.json` (localhost). Inga hemligheter i `appsettings.json`.
-- **Production:** enbart miljövariabler i Dokploy. `EnsureCreated` körs inte.
+- **Production:** enbart miljövariabler i Dokploy. Schema via EF-migrationer (`dotnet ef database update`), inte auto-migrate vid startup.
 
 ## CI/CD
 
