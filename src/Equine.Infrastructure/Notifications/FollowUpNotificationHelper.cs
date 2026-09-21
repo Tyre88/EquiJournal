@@ -9,6 +9,7 @@ public static class FollowUpNotificationHelper
         Horse horse,
         string clinicName,
         string publicBaseUrl,
+        string tenantSlug,
         EquineDbContext db,
         CancellationToken ct = default)
     {
@@ -17,17 +18,19 @@ public static class FollowUpNotificationHelper
             .OrderByDescending(j => j.PerformedAt)
             .FirstOrDefault();
 
-        var slug = "";
+        var treatmentSlug = "";
         if (last?.TreatmentTypeId is Guid tid)
         {
             var treatment = await db.TreatmentTypes.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.Id == tid, ct);
-            slug = treatment?.Slug ?? "";
+            treatmentSlug = treatment?.Slug ?? "";
         }
 
-        var bookingLink = string.IsNullOrWhiteSpace(slug)
+        var portalSlug = string.IsNullOrWhiteSpace(tenantSlug) ? "default" : tenantSlug;
+        var portalLink = $"{publicBaseUrl}/portal/{portalSlug}";
+        var bookingLink = string.IsNullOrWhiteSpace(treatmentSlug)
             ? $"{publicBaseUrl}/widget/"
-            : $"{publicBaseUrl}/widget/?behandling={Uri.EscapeDataString(slug)}";
+            : $"{publicBaseUrl}/widget/?behandling={Uri.EscapeDataString(treatmentSlug)}";
 
         return new Dictionary<string, string>
         {
@@ -36,8 +39,8 @@ public static class FollowUpNotificationHelper
             ["hastnamn"] = horse.Name,
             ["behandling"] = last?.TreatmentTypeName ?? "",
             ["kliniknamn"] = clinicName,
-            ["portalänk"] = $"{publicBaseUrl}/portal/",
-            ["portallank"] = $"{publicBaseUrl}/portal/",
+            ["portalänk"] = portalLink,
+            ["portallank"] = portalLink,
             ["bokningslänk"] = bookingLink,
             ["bokningslank"] = bookingLink
         };

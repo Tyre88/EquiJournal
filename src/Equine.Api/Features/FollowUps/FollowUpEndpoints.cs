@@ -2,6 +2,7 @@ using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Practice;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Widget;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,6 +64,7 @@ public static class FollowUpEndpoints
             INotificationScheduler scheduler,
             PracticeSettingsService practice,
             WidgetSettingsService widget,
+            ITenantContext tenant,
             CancellationToken ct) =>
         {
             var horse = await db.Horses
@@ -75,7 +77,7 @@ public static class FollowUpEndpoints
             var p = await practice.GetAsync(ct);
             var w = await widget.GetAsync(ct);
             var payload = await FollowUpNotificationHelper.BuildPayloadAsync(
-                horse, p.Clinic, w.PublicBaseUrl, db, ct);
+                horse, p.Clinic, w.PublicBaseUrl, tenant.Slug ?? "default", db, ct);
             await scheduler.EnqueueAsync(
                 NotificationType.FollowUpDue,
                 NotificationChannel.Email,
