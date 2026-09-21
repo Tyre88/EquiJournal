@@ -39,7 +39,6 @@ public static class AuthEndpoints
             Log.Information("Login successful for user {UserId} ({Email})", user.Id, user.Email);
 
             var tokens = await IssueTokens(user, userManager, configuration);
-            Log.Information("Generated tokens for user {UserId} - token length: {Length}", user.Id, tokens.AccessToken.Length);
             await auditWriter.WriteAsync(user.Id.ToString(), "LOGIN", "ApplicationUser", user.Id.ToString(), null, null, ct);
 
             return Results.Ok(new
