@@ -11,14 +11,20 @@
 
   const src = new URL(script.src);
   const origin = src.origin;
+  const slug = script.getAttribute('data-slug') || '';
   const treatment = script.getAttribute('data-treatment') || '';
   const lang = script.getAttribute('data-lang') || 'sv';
   const params = new URLSearchParams();
   if (treatment) params.set('treatment', treatment);
   if (lang) params.set('lang', lang);
 
+  if (!slug) {
+    console.warn('HastBokning: data-slug is required');
+    return;
+  }
+
   const iframe = document.createElement('iframe');
-  iframe.src = `${origin}/widget/${params.toString() ? '?' + params.toString() : ''}`;
+  iframe.src = `${origin}/widget/${encodeURIComponent(slug)}${params.toString() ? '?' + params.toString() : ''}`;
   iframe.title = 'Boka behandling';
   iframe.style.cssText = 'width:100%;border:0;display:block;min-height:320px;';
   iframe.setAttribute('scrolling', 'no');
