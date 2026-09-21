@@ -297,25 +297,15 @@ app.MapAuditEndpoints();
 app.MapExportEndpoints();
 
 // App endpoints (authenticated)
-appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> userManager) =>
+appGroup.MapGet("/me", async (HttpContext http, UserManager<ApplicationUser> userManager, EquineDbContext db, CancellationToken ct) =>
 {
-    var authHeader = context.Request.Headers["Authorization"].ToString();
-    Log.Information("/api/app/me called - Auth header present: {HasAuth}", !string.IsNullOrEmpty(authHeader));
+    var userId = CurrentUser.GetUserId(http);
+    if (userId is null) return Results.Unauthorized();
 
-    if (!context.User.Identity?.IsAuthenticated == true)
-    {
-        Log.Warning("/api/app/me: User not authenticated");
-        return Results.Unauthorized();
-    }
+    var user = await userManager.FindByIdAsync(userId.Value.ToString());
+    if (user is null) return Results.Unauthorized();
 
-    var user = await userManager.FindByIdAsync(context.User.FindFirstValue(ClaimTypes.NameIdentifier));
-    if (user is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    var db = context.RequestServices.GetRequiredService<EquineDbContext>();
-    var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == user.TenantId);
+    var tenant = await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == user.TenantId, ct);
 
     return Results.Json(new
     {
@@ -336,23 +326,21 @@ appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> 
 }).RequireAuthorization();
 
 appGroup.MapPatch("/me", async (
-    HttpContext context,
+    HttpContext http,
     UserManager<ApplicationUser> userManager,
     Equine.Infrastructure.Audit.IAuditWriter audit,
     Equine.Api.Features.Settings.AccountUpdateRequest request,
     CancellationToken ct) =>
 {
-    var user = await userManager.FindByIdAsync(context.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    var userId = CurrentUser.GetUserId(http);
+    if (userId is null) return Results.Unauthorized();
+
+    var user = await userManager.FindByIdAsync(userId.Value.ToString());
     if (user is null) return Results.Unauthorized();
+
     if (!string.IsNullOrWhiteSpace(request.DisplayName))
         user.DisplayName = request.DisplayName.Trim();
-    if (!string.IsNullOrWhiteSpace(request.Email))
-    {
-        user.Email = request.Email.Trim();
-        user.UserName = user.Email;
-        user.NormalizedEmail = user.Email.ToUpperInvariant();
-        user.NormalizedUserName = user.NormalizedEmail;
-    }
+
     user.UpdatedAt = DateTimeOffset.UtcNow;
     await userManager.UpdateAsync(user);
     await audit.WriteAsync(user.Id.ToString(), "ACCOUNT_UPDATE", "ApplicationUser", user.Id.ToString(), null, null, ct);
