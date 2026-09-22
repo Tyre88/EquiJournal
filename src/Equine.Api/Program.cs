@@ -333,7 +333,7 @@ appGroup.MapGet("/me", async (HttpContext context, UserManager<ApplicationUser> 
             plan = tenant.Plan.ToString()
         }
     });
-}).RequireAuthorization();
+}).RequireAuthorization("CanManageBookings");
 
 appGroup.MapPatch("/me", async (
     HttpContext context,
@@ -357,7 +357,7 @@ appGroup.MapPatch("/me", async (
     await userManager.UpdateAsync(user);
     await audit.WriteAsync(user.Id.ToString(), "ACCOUNT_UPDATE", "ApplicationUser", user.Id.ToString(), null, null, ct);
     return Results.Ok(new { user.Id, user.Email, user.DisplayName, user.TwoFactorEnabled });
-}).RequireAuthorization();
+}).RequireAuthorization("CanManageBookings");
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
