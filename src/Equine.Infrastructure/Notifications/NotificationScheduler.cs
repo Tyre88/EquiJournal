@@ -50,7 +50,7 @@ public sealed class NotificationScheduler : INotificationScheduler
             when = QuietHours.DeferToWindow(when, settings.QuietHoursStart, settings.QuietHoursEnd, zone);
         }
 
-        if (type == NotificationType.FollowUpDue)
+        if (type is NotificationType.FollowUpDue or NotificationType.JournalUnsigned)
         {
             var recent = await _db.NotificationLog.AnyAsync(
                 n => n.Type == type
