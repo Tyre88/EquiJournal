@@ -11,7 +11,7 @@ public static class HorseEndpoints
 {
     public static IEndpointRouteBuilder MapHorseEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/app/horses").RequireAuthorization();
+        var group = app.MapGroup("/api/app/horses").RequireAuthorization("CanManageBookings");
 
         group.MapGet("/", async (EquineDbContext db) =>
         {

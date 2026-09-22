@@ -12,7 +12,7 @@ public static class OwnerEndpoints
 {
     public static IEndpointRouteBuilder MapOwnerEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/app/owners").RequireAuthorization();
+        var group = app.MapGroup("/api/app/owners").RequireAuthorization("CanManageBookings");
 
         group.MapGet("/", async (EquineDbContext db) =>
         {
