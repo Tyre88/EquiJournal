@@ -8,8 +8,13 @@ namespace Equine.Api.Middleware;
 public class GlobalExceptionHandler : IExceptionHandler
 {
     private readonly ILogger<GlobalExceptionHandler> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) => _logger = logger;
+    public GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger, IHostEnvironment environment)
+    {
+        _logger = logger;
+        _environment = environment;
+    }
 
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
@@ -33,8 +38,8 @@ public class GlobalExceptionHandler : IExceptionHandler
         }
 
         var hideDetails = isPublic
-            || httpContext.Request.Host.Host.Contains("prod", StringComparison.OrdinalIgnoreCase)
-            || httpContext.Request.Host.Host.Contains("staging", StringComparison.OrdinalIgnoreCase);
+            || _environment.IsProduction()
+            || _environment.IsEnvironment("Staging");
 
         var problemDetails = new ProblemDetails
         {
