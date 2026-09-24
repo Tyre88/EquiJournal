@@ -52,13 +52,9 @@ public static class ServiceCollectionExtensions
             {
                 OnMessageReceived = context =>
                 {
-                    var accessToken = context.Request.Query["access_token"];
                     var authHeader = context.Request.Headers["Authorization"].ToString();
-                    var path = context.HttpContext.Request.Path;
                     if (!string.IsNullOrEmpty(authHeader))
                         Log.Debug("Auth header received: {Header}", authHeader);
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/signalr"))
-                        context.Token = accessToken;
                     return Task.CompletedTask;
                 },
                 OnChallenge = context =>
