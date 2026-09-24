@@ -17,7 +17,7 @@ export class AppComponent implements OnInit {
   ngOnInit(): void {
     void this.theme;
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(reg => {
+      navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).then(reg => {
         // Pick up SW fixes immediately instead of waiting for the next tab close.
         reg.update().catch(() => undefined);
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });

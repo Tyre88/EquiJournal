@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, inject, signal, viewChild } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { EjConfirmDialogComponent, EjIconComponent, EjToastHostComponent } from '@equijournal/ui';
 import { Api } from '../api';
 import { AuthService } from '../auth.service';
@@ -146,6 +146,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   sync = inject(SyncStatusService);
   private api = inject(Api);
+  private router = inject(Router);
   private search = viewChild(GlobalSearchComponent);
   moreOpen = signal(false);
   inboxOpen = signal(false);
@@ -243,9 +244,10 @@ export class AppShellComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
+    const goLogin = () => void this.router.navigateByUrl('/login');
     this.auth.logout().subscribe({
-      next: () => location.assign('/login'),
-      error: () => location.assign('/login')
+      next: goLogin,
+      error: goLogin
     });
   }
 }
