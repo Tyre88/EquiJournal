@@ -2,6 +2,7 @@ using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Equine.Api.Features.Search;
 
@@ -13,6 +14,7 @@ public static class SearchEndpoints
             [FromQuery] string? q,
             [FromQuery] int? limit,
             EquineDbContext db,
+            ILogger<SearchEndpoints> logger,
             CancellationToken ct) =>
         {
             var query = (q ?? "").Trim();
@@ -66,8 +68,9 @@ public static class SearchEndpoints
                     })
                     .ToListAsync(ct);
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Journal full-text search failed for query {Query}", query);
                 journals = [];
             }
 

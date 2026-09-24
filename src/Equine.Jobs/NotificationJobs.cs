@@ -285,9 +285,7 @@ public sealed class NotificationJobs
         {
             var db = scope.ServiceProvider.GetRequiredService<EquineDbContext>();
             var cutoff = DateTimeOffset.UtcNow.AddMonths(-12);
-            var old = await db.NotificationLog.Where(l => l.CreatedAt < cutoff).ToListAsync(ct);
-            db.NotificationLog.RemoveRange(old);
-            await db.SaveChangesAsync(ct);
+            await db.NotificationLog.Where(l => l.CreatedAt < cutoff).ExecuteDeleteAsync(ct);
         }, CancellationToken.None);
     }
 
@@ -298,7 +296,7 @@ public sealed class NotificationJobs
         var log = scope.ServiceProvider.GetRequiredService<ILogger<NotificationJobs>>();
         var domain = config["Notifications:SendingDomain"];
         if (string.IsNullOrWhiteSpace(domain)) return;
-        var checker = new DnsDeliverabilityChecker();
+        var checker = scope.ServiceProvider.GetRequiredService<DnsDeliverabilityChecker>();
         var result = await checker.CheckAsync(domain);
         if (!result.Passed)
         {
