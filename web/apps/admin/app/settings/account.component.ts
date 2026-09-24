@@ -136,7 +136,7 @@ export class AccountSettingsComponent implements OnInit {
         this.toast.error('Push nekades.');
         return;
       }
-      const reg = await navigator.serviceWorker.register('/sw.js').catch(() => null);
+      const reg = await navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).catch(() => null);
       const push = reg?.pushManager;
       if (!push) {
         this.toast.success('Aviseringar är tillåtna i den här fliken.');
