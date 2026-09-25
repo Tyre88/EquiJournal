@@ -28,6 +28,6 @@ All values can be set as environment variables (`Section__Key`). Production: Dok
 | `ASPNETCORE_ENVIRONMENT` | | `Development` / `Production` / `Testing` |
 | `ASPNETCORE_URLS` | Container bind | `http://+:8080` |
 
-The Dokploy compose stack does not run Postgres. The API connects to `equijournal-production-lwqnp4:5432`, database `equijurnal`, user `equi`, with `POSTGRES_PASSWORD` from the Dokploy environment. It builds the Npgsql connection string from those parts. Local `docker-compose.yml` still runs its own Postgres.
+The Dokploy compose stack does not run Postgres. The API connects to `equijournal-production-lwqnp4:5432`, database `equijurnal`, user `equi`. The password is set on the api service in `docker-compose.dokploy.yml` so a stale `POSTGRES_PASSWORD` in the Dokploy UI is not sent. The API builds the Npgsql connection string from those parts. Local `docker-compose.yml` still runs its own Postgres.
 
 HSTS max-age is 180 days in Production (raise after a clean month). Hangfire dashboard: `/hangfire`, admin only.

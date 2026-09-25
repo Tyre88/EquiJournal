@@ -25,14 +25,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      # External Dokploy Postgres (equijournal-production-lwqnp4). Program.cs
-      # builds ConnectionStrings:Default from these so the password is not
-      # spliced into a ';'-delimited string. Set POSTGRES_PASSWORD in Dokploy.
+      # External Dokploy Postgres. A literal password so a leftover
+      # POSTGRES_PASSWORD in the Dokploy UI cannot override the equi role.
+      # Program.cs builds ConnectionStrings:Default from these parts.
       Postgres__Host: equijournal-production-lwqnp4
       Postgres__Port: "5432"
       Postgres__Database: equijurnal
       Postgres__Username: equi
-      Postgres__Password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      Postgres__Password: "6LVC8XClGXLfIqjRJR9c"
       Jwt__Issuer: ${JWT_ISSUER:-Equine.Api}
       Jwt__Audience: ${JWT_AUDIENCE:-EquineClient}
       Jwt__SecurityKey: ${JWT_SECURITY_KEY:?set JWT_SECURITY_KEY}
