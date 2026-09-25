@@ -111,7 +111,9 @@ services:
 
   # Makes POSTGRES_PASSWORD authoritative on every deploy, not just at initdb.
   # Connects over the trusted local socket, so it works even when the cluster still
-  # holds an older password. Idempotent: setting the same password again is a no-op.
+  # holds an older password. Idempotent, and always exits 0 -- a failure here must
+  # never block a deploy, since the worst case is the password staying as it was.
+  # Read its log line to see what happened.
   postgres-password-sync:
     image: postgres:16-alpine
     depends_on:
@@ -122,15 +124,8 @@ services:
       SYNC_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - postgres_socket:/var/run/postgresql
-    # Needs a shell to expand SYNC_PASSWORD; psql's :'pw' does the SQL quoting, so
-    # '+' and '/' from `openssl rand -base64` pass through intact.
-    entrypoint:
-      - /bin/sh
-      - -c
-      - >
-        exec psql -h /var/run/postgresql -d postgres -v ON_ERROR_STOP=1
-        -v pw="$$SYNC_PASSWORD"
-        -c "ALTER USER CURRENT_USER WITH PASSWORD :'pw';"
+      - ./scripts/sync-postgres-password.sh:/sync-postgres-password.sh:ro
+    entrypoint: ["/bin/sh", "/sync-postgres-password.sh"]
     restart: "no"
     networks:
       - internal
