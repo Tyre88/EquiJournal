@@ -34,6 +34,25 @@ password to a server that still has the old one.
 This is the default explanation when the stack worked before and broke after a secret
 rotation, an env-var edit, or a re-paste of `.env.dokploy.example`.
 
+### Fix 0 — redeploy (once the password-sync service is live)
+
+`docker-compose.dokploy.yml` runs a one-shot `postgres-password-sync` service between
+`postgres` becoming healthy and `api` starting. It connects over the local socket —
+which the image's `pg_hba.conf` trusts — and runs `ALTER USER CURRENT_USER WITH
+PASSWORD`, making `POSTGRES_PASSWORD` authoritative on **every** deploy rather than
+only at `initdb`. A plain redeploy from Dokploy should now clear a rotated-password
+mismatch on its own.
+
+If the API still fails after a redeploy, check that service's logs first:
+
+```bash
+docker compose -p equilog logs postgres-password-sync
+```
+
+A failure there blocks `api` from starting (`service_completed_successfully`), so a
+crash-looping deploy with no `api` logs at all points here rather than at the database.
+Fall through to Fix A if the sync service itself cannot run.
+
 ### Fix A — reset the password in the running cluster (keeps all data, preferred)
 
 ```bash
@@ -78,6 +97,11 @@ Take a dump first if there is any doubt — see [backup.md](backup.md) and
 - **`$`** — Docker Compose interpolates it before the container sees it. `pa$$word`
   arrives as `paword`. Escape as `$$` in an env file, or avoid `$`.
 - **`;`** — terminates the Npgsql keyword/value pair, silently truncating the password.
+
+Note that `postgres-password-sync` reads `POSTGRES_PASSWORD` directly rather than
+through the connection string, so a `;` in the password would leave the cluster and the
+API disagreeing even after a successful sync. `$` is eaten by Compose before either
+service sees it, so both sides stay consistent but neither matches what you typed.
 
 `openssl rand -base64 48` produces neither, which is why the generator in
 [.env.dokploy.example](../../.env.dokploy.example) is the recommended source. If the
