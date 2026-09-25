@@ -28,90 +28,101 @@ Dokploy generates its own Compose project name (e.g. `equijournal-fullstack-451i
 so run `docker compose ls` first and substitute it for `-p equilog` in the commands
 below.
 
-## Most likely cause: the volume was initialized with a different password
+## Step 1 — find out which of the two causes it is
+
+Both produce an identical `28P01`. You cannot tell them apart from the API log, and the
+fix differs, so check before changing anything. Dokploy gives every service a **Terminal**
+tab — you do not need SSH or `docker compose` for this.
+
+In the **api** service terminal:
+
+```bash
+printenv ConnectionStrings__Default
+```
+
+In the **postgres** service terminal:
+
+```bash
+printenv POSTGRES_PASSWORD
+```
+
+Compare the `Password=` section of the first against the second, character for
+character. Watch the end of the string especially.
+
+- **They differ** → cause B. The password is being mangled on its way into the
+  connection string only. Go to Step 2B.
+- **They match** → cause A. Both containers agree; it is the stored cluster password
+  that is stale. Go to Step 2A.
+
+## Step 2A — the cluster holds an older password
 
 `POSTGRES_PASSWORD` is only read by `initdb`, the **first** time the `postgres_data`
-volume is created. Changing `POSTGRES_PASSWORD` in Dokploy and redeploying does not
-change the password of an already-initialized cluster. The API then presents the new
-password to a server that still has the old one.
+volume is created. Changing it in Dokploy and redeploying does not change the password
+of an already-initialized cluster. The API then presents the new password to a server
+that still has the old one.
 
 This is the default explanation when the stack worked before and broke after a secret
-rotation, an env-var edit, or a re-paste of `.env.dokploy.example`.
+rotation — including [cutover.md](../cutover.md) step 4, "rotate any credential that
+ever lived in git".
 
-### Fix A — reset the password in the running cluster (keeps all data, preferred)
-
-```bash
-# on the Dokploy host
-docker compose -p equilog exec postgres \
-  psql -U postgres -d equijournal \
-  -c "ALTER USER postgres WITH PASSWORD 'THE-VALUE-IN-DOKPLOY';"
-```
-
-`exec … psql -U postgres` authenticates over the local socket (trust/peer), so it works
-even though TCP password auth is failing. Use the exact string from the Dokploy
-`POSTGRES_PASSWORD` variable, then restart the `api` service.
-
-If the shell rejects the quoting, write the statement to a file and use `psql -f`
-rather than escaping by hand.
-
-### Fix B — point the API back at the old password
-
-If you still have the password the volume was initialized with, set `POSTGRES_PASSWORD`
-back to it and redeploy. Then do Fix A at a calmer moment if you actually wanted to
-rotate.
-
-### Fix C — re-initialize the volume (destroys the database)
-
-Only when the data is disposable (fresh environment, never seeded).
+Fix it in the **postgres** service terminal, which authenticates over the local socket
+(trust auth) and so works even though TCP password auth is failing:
 
 ```bash
-docker compose -p equilog down
-docker volume rm equilog_postgres_data
-docker compose -p equilog -f docker-compose.dokploy.yml up -d
+psql -U postgres -d equijournal \
+  -c "ALTER USER postgres WITH PASSWORD 'PASTE-POSTGRES_PASSWORD-EXACTLY';"
 ```
 
-Take a dump first if there is any doubt — see [backup.md](backup.md) and
-[restore.md](restore.md).
+Paste the literal value from Step 1, not a shell variable. If it contains a single
+quote, double it (`it's` → `it''s`). Then restart the `api` service.
 
-## Second cause: the password never survived interpolation
+Note this is a plain SQL string. Do **not** reach for `psql -v` and `:'var'` here: psql
+only interpolates variables in input it parses itself, and `-c` hands the string
+straight to the server. See the note at the end of this file.
 
-`ConnectionStrings__Default` is assembled in
+## Step 2B — the password is mangled before Postgres ever sees it
+
+The API's connection string is assembled in
 [docker-compose.dokploy.yml](../../docker-compose.dokploy.yml) as
-`…;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}`. Two characters break it:
+`…;Username=…;Password=${POSTGRES_PASSWORD}`. Two characters break that:
 
-- **`$`** — Docker Compose interpolates it before the container sees it. `pa$$word`
-  arrives as `paword`. Escape as `$$` in an env file, or avoid `$`.
 - **`;`** — terminates the Npgsql keyword/value pair, silently truncating the password.
+  Postgres itself still receives the full value, so the two sides disagree.
+- **`$`** — Docker Compose interpolates it before either container starts. `pa$$word`
+  arrives as `paword`. This one hits both services equally, so they stay consistent
+  with each other but neither matches what you typed into Dokploy.
 
-`openssl rand -base64 48` produces neither, which is why the generator in
-[.env.dokploy.example](../../.env.dokploy.example) is the recommended source. If the
-password came from somewhere else, check for those two characters first.
+Leading or trailing whitespace will also bite you, and is invisible in the Dokploy UI.
 
-Confirm what the container actually received:
+Fix: set `POSTGRES_PASSWORD` to a value containing none of those. `openssl rand -base64
+48` is safe — it emits only `A-Za-z0-9+/=`, all of which pass through intact. Then run
+**Step 2A as well**, because changing the variable still will not change the stored
+cluster password, and redeploy.
 
-```bash
-docker compose -p equilog exec api printenv ConnectionStrings__Default
-```
+## If the database has nothing worth keeping
 
-Compare it character-for-character against the Postgres side:
+Fastest certain fix, and reasonable before cutover. `initdb` runs again and takes the
+current `POSTGRES_PASSWORD`, so both causes disappear at once.
 
-```bash
-docker compose -p equilog exec postgres printenv POSTGRES_PASSWORD
-```
-
-Note that the second command shows what the *current* container was started with, which
-is not necessarily what the volume was initialized with — that is exactly the trap in
-the first cause above.
-
-## Verify the fix
+**This destroys the database.** Check [cutover.md](../cutover.md) first — if the CSV
+import in step 2 has already run, that data is in this volume.
 
 ```bash
-# auth over TCP as the API does, from inside the API container
-docker compose -p equilog exec api \
-  curl -fsS http://127.0.0.1:8080/health/ready
+docker compose -p <project> down
+docker volume rm <project>_postgres_data
+docker compose -p <project> -f docker-compose.dokploy.yml up -d
 ```
 
-Then confirm the container stays up across a restart and that one admin login works.
+Take a dump first if there is any doubt — [backup.md](backup.md), [restore.md](restore.md).
+
+## Verify
+
+```bash
+curl -fsS http://127.0.0.1:8080/health/ready
+```
+
+from the **api** service terminal. Then confirm the container survives a restart and
+that one admin login works.
 
 ## Why the failure is fatal rather than retried
 
