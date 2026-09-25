@@ -19,6 +19,11 @@ CI builds the image from [Dockerfile](../Dockerfile) (API + admin + widget + por
 2. If a schema change already ran, restore the last dump to staging first; only then decide whether production needs a dump restore.
 3. Confirm `/health/ready` and one admin login + today’s schema.
 
+## Troubleshooting
+
+- API crash-loops with `SqlState: 28P01` / `password authentication failed`:
+  [runbooks/postgres-auth-failure.md](runbooks/postgres-auth-failure.md).
+
 ## Cutover
 
 See [cutover.md](cutover.md).
