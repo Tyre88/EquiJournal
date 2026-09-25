@@ -81,6 +81,68 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # POSTGRES_PASSWORD is only read by initdb, the first time the
+    # postgres_data volume is created. Rotating it in Dokploy therefore does
+    # NOT change the password of an existing cluster: the API then presents
+    # the new password to a server still holding the old one and dies with
+    # SqlState 28P01 / auth_failed. See docs/runbooks/postgres-auth-failure.md
+    #
+    # This wrapper reconciles the role password with POSTGRES_PASSWORD on
+    # every start, so the variable is authoritative rather than a one-shot.
+    #
+    # Why it is safe:
+    #  * It runs inside this container, against the local unix socket, which
+    #    the image's pg_hba.conf grants `trust` -- so it works even while TCP
+    #    password auth is failing. No shared socket volume, no extra service.
+    #  * It runs in the background and `exec`s the stock entrypoint regardless,
+    #    so it CANNOT fail, block or slow down a deploy. Worst case it logs a
+    #    failure and the cluster password stays exactly as it was.
+    #
+    # The ALTER is fed to psql on STDIN, not via -c. psql only interpolates
+    # :'pw' in input it parses itself; with -c the literal `:'pw'` reaches the
+    # server and is rejected as a syntax error. Do not "tidy" this into a -c.
+    # The :'pw' form is also what keeps a password containing a quote safe.
+    command:
+      - sh
+      - -c
+      - |
+        (
+          sleep 5
+          ready=no
+          i=0
+          while [ $$i -lt 60 ]; do
+            if pg_isready -q -h /var/run/postgresql -U "$$POSTGRES_USER"; then
+              ready=yes
+              break
+            fi
+            i=$$((i + 1))
+            sleep 1
+          done
+          if [ "$$ready" != yes ]; then
+            echo "password-sync: postgres never became ready; skipped." >&2
+          elif [ -z "$$POSTGRES_PASSWORD" ]; then
+            echo "password-sync: POSTGRES_PASSWORD is empty; skipped." >&2
+          else
+            i=0
+            while [ $$i -lt 3 ]; do
+              if printf "%s\n" "ALTER USER CURRENT_USER WITH PASSWORD :'pw';" \
+                | psql -q -v ON_ERROR_STOP=1 -v pw="$$POSTGRES_PASSWORD" \
+                       -h /var/run/postgresql -U "$$POSTGRES_USER" -d postgres
+              then
+                echo "password-sync: POSTGRES_PASSWORD applied to role $$POSTGRES_USER." >&2
+                break
+              fi
+              i=$$((i + 1))
+              [ $$i -lt 3 ] && echo "password-sync: ALTER USER attempt $$i failed; retrying." >&2
+              sleep 3
+            done
+            if [ $$i -ge 3 ]; then
+              echo "password-sync: ALTER USER failed; cluster password left unchanged." >&2
+              echo "password-sync: reset it by hand -- docs/runbooks/postgres-auth-failure.md" >&2
+            fi
+          fi
+        ) &
+        exec docker-entrypoint.sh postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-equijournal}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

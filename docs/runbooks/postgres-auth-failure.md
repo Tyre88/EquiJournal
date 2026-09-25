@@ -132,23 +132,50 @@ degraded-but-running API. That is the intended behaviour — a misconfigured dat
 not something to serve traffic through — but it means the only signal is the crash loop
 in the Dokploy logs.
 
-## Previously attempted: automatic reconciliation
+## Automatic reconciliation (in the `postgres` service)
 
-A `postgres-password-sync` compose service that ran `ALTER USER` over the local socket
-on every deploy was added and then reverted (PRs #60-#63, 2026-09-25). It failed twice
-in production:
+`docker-compose.dokploy.yml` wraps the `postgres` container's command so that, a few
+seconds after the server accepts connections, it runs
 
-1. It gated `api` on `service_completed_successfully`, so when the sync exited 1 it took
-   the whole deploy down — turning a recoverable stale password into a hard outage.
+```sql
+ALTER USER CURRENT_USER WITH PASSWORD :'pw';
+```
+
+against the **local unix socket**, where the image's `pg_hba.conf` grants `trust`. That
+works even while TCP password auth is failing, which is the whole point. The effect is
+that `POSTGRES_PASSWORD` becomes authoritative on every deploy instead of only at
+`initdb`, so Step 2A below should not normally be needed any more.
+
+It is deliberately built so it cannot make things worse:
+
+- It runs in the background and the stock entrypoint is `exec`'d regardless, so it can
+  never fail, block or slow a deploy. Worst case it logs and the password is unchanged.
+- It lives inside the `postgres` container, so there is no shared socket volume and no
+  extra service for `api` to depend on.
+
+Check what it did:
+
+```
+docker compose -p <project> logs postgres | grep password-sync
+```
+
+- `POSTGRES_PASSWORD applied to role postgres.` — reconciled.
+- `ALTER USER failed; cluster password left unchanged.` — fall back to Step 2A.
+- `postgres never became ready; skipped.` — the cluster itself is the problem, not auth.
+
+### Two ways this was got wrong before
+
+Both were shipped and both broke a deploy (PRs #60-#63, 2026-09-25). Do not reintroduce
+either:
+
+1. A separate `postgres-password-sync` service gated `api` on
+   `service_completed_successfully`, so a non-zero exit took the whole deploy down —
+   turning a recoverable stale password into a hard outage.
 2. The statement was passed as `psql -c "… PASSWORD :'pw'"`. psql only interpolates
    variables in input it parses itself; `-c` hands the string straight to the server,
-   which rejected the literal `:'pw'` with `syntax error at or near ":"`.
-
-Both are fixable, and the third iteration was never deployed. If you revisit this: the
-step must always exit 0, the statement must go in on stdin, and the result must be
-verified with a real TCP login rather than inferred from the exit code. But weigh that
-against how rarely the password actually rotates — the manual `ALTER USER` above is one
-command and has no failure mode of its own.
+   which rejected the literal `:'pw'` with `syntax error at or near ":"`. It must go in
+   on **stdin**. Keep the `:'pw'` form rather than splicing the password into the SQL —
+   that is what keeps a password containing a single quote safe.
 
 ## Related
 
