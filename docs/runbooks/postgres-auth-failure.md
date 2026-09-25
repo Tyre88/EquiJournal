@@ -24,6 +24,10 @@ not `auth_failed`. So `Host=` is right and the password is wrong.
 healthcheck is `pg_isready -U postgres`, which checks that the server answers, not that
 the password matches.
 
+Dokploy generates its own Compose project name (e.g. `equijournal-fullstack-451i7h`),
+so run `docker compose ls` first and substitute it for `-p equilog` in the commands
+below.
+
 ## Most likely cause: the volume was initialized with a different password
 
 `POSTGRES_PASSWORD` is only read by `initdb`, the **first** time the `postgres_data`
@@ -33,47 +37,6 @@ password to a server that still has the old one.
 
 This is the default explanation when the stack worked before and broke after a secret
 rotation, an env-var edit, or a re-paste of `.env.dokploy.example`.
-
-### Fix 0 — redeploy (once the password-sync service is live)
-
-`docker-compose.dokploy.yml` runs a one-shot `postgres-password-sync` service between
-`postgres` becoming healthy and `api` starting. It connects over the local socket —
-which the image's `pg_hba.conf` trusts — and runs `ALTER USER CURRENT_USER WITH
-PASSWORD`, making `POSTGRES_PASSWORD` authoritative on **every** deploy rather than
-only at `initdb`. A plain redeploy from Dokploy should now clear a rotated-password
-mismatch on its own.
-
-The sync step **always exits 0**, deliberately. It can reset a stale password but it
-must never be able to block a deploy — the worst case is the password staying exactly
-as it was, which is where you would be without the step at all. So the deploy
-succeeding tells you nothing; read the log instead:
-
-```bash
-docker compose -p equilog logs postgres-password-sync
-```
-
-- `… already authenticates over TCP; nothing to do.` — the password was already
-  correct. This is the steady state.
-- `… applied to role postgres and verified over TCP.` — it found a mismatch and fixed
-  it. The verification is a real TCP login with the configured password, i.e. exactly
-  what the API is about to do, so this is proof rather than inference.
-- `… ALTER USER succeeded but TCP auth still fails.` — the role now has the password
-  but logging in with it does not work. Look at `pg_hba.conf`.
-- `… ALTER USER failed …` — it reached the cluster and the statement was rejected.
-  Fall through to Fix A.
-- `… no Postgres socket found …` — the shared `postgres_socket` volume is not
-  surfacing the socket, so the step was a no-op. Fall through to Fix A.
-
-### A trap if you edit this script
-
-The `ALTER USER` goes in on **stdin**, not via `psql -c`. psql only performs variable
-interpolation on input it parses itself; `-c` hands the string straight to the server,
-which then fails with `syntax error at or near ":"` on the literal `:'pw'`. Using
-`:'pw'` rather than splicing the password into the SQL is what makes a password
-containing a single quote safe, so the two go together.
-
-Note the project name: Dokploy generates its own (e.g. `equijournal-fullstack-451i7h`),
-so run `docker compose ls` if `-p equilog` finds nothing.
 
 ### Fix A — reset the password in the running cluster (keeps all data, preferred)
 
@@ -120,11 +83,6 @@ Take a dump first if there is any doubt — see [backup.md](backup.md) and
   arrives as `paword`. Escape as `$$` in an env file, or avoid `$`.
 - **`;`** — terminates the Npgsql keyword/value pair, silently truncating the password.
 
-Note that `postgres-password-sync` reads `POSTGRES_PASSWORD` directly rather than
-through the connection string, so a `;` in the password would leave the cluster and the
-API disagreeing even after a successful sync. `$` is eaten by Compose before either
-service sees it, so both sides stay consistent but neither matches what you typed.
-
 `openssl rand -base64 48` produces neither, which is why the generator in
 [.env.dokploy.example](../../.env.dokploy.example) is the recommended source. If the
 password came from somewhere else, check for those two characters first.
@@ -162,6 +120,24 @@ initial connection, so a bad credential takes the process down instead of leavin
 degraded-but-running API. That is the intended behaviour — a misconfigured database is
 not something to serve traffic through — but it means the only signal is the crash loop
 in the Dokploy logs.
+
+## Previously attempted: automatic reconciliation
+
+A `postgres-password-sync` compose service that ran `ALTER USER` over the local socket
+on every deploy was added and then reverted (PRs #60-#63, 2026-09-25). It failed twice
+in production:
+
+1. It gated `api` on `service_completed_successfully`, so when the sync exited 1 it took
+   the whole deploy down — turning a recoverable stale password into a hard outage.
+2. The statement was passed as `psql -c "… PASSWORD :'pw'"`. psql only interpolates
+   variables in input it parses itself; `-c` hands the string straight to the server,
+   which rejected the literal `:'pw'` with `syntax error at or near ":"`.
+
+Both are fixable, and the third iteration was never deployed. If you revisit this: the
+step must always exit 0, the statement must go in on stdin, and the result must be
+verified with a real TCP login rather than inferred from the exit code. But weigh that
+against how rarely the password actually rotates — the manual `ALTER USER` above is one
+command and has no failure mode of its own.
 
 ## Related
 

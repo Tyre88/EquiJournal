@@ -18,8 +18,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      postgres-password-sync:
-        condition: service_completed_successfully
       minio:
         condition: service_healthy
       minio-init:
@@ -27,9 +25,6 @@ services:
       mailpit:
         condition: service_started
     environment:
-      # Development is deliberate: the schema is created by EnsureCreatedAsync, which
-      # only runs in the non-Production branch of EnsureDatabaseExists. There are no EF
-      # migrations yet, so Production would start against an empty database.
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-equijournal};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -86,19 +81,12 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    # POSTGRES_PASSWORD only takes effect when postgres_data is first initialized.
-    # Rotating it afterwards leaves the cluster on the old password, which the API
-    # reports as SqlState 28P01. postgres-password-sync below reconciles it on every
-    # deploy -- see docs/runbooks/postgres-auth-failure.md.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-equijournal}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Shared so postgres-password-sync can reach the local socket, which the image's
-      # pg_hba.conf trusts, even while TCP password auth is failing.
-      - postgres_socket:/var/run/postgresql
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - internal
@@ -108,27 +96,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-
-  # Makes POSTGRES_PASSWORD authoritative on every deploy, not just at initdb.
-  # Connects over the trusted local socket, so it works even when the cluster still
-  # holds an older password. Idempotent, and always exits 0 -- a failure here must
-  # never block a deploy, since the worst case is the password staying as it was.
-  # Read its log line to see what happened.
-  postgres-password-sync:
-    image: postgres:16-alpine
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      PGUSER: ${POSTGRES_USER:-postgres}
-      SYNC_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-    volumes:
-      - postgres_socket:/var/run/postgresql
-      - ./scripts/sync-postgres-password.sh:/sync-postgres-password.sh:ro
-    entrypoint: ["/bin/sh", "/sync-postgres-password.sh"]
-    restart: "no"
-    networks:
-      - internal
 
   mailpit:
     image: axllent/mailpit:latest
@@ -187,7 +154,6 @@ networks:
 
 volumes:
   postgres_data:
-  postgres_socket:
   minio_data:
   mailpit_data:
   api_logs:
