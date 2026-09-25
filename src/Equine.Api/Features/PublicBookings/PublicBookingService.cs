@@ -166,8 +166,7 @@ public sealed class PublicBookingService
                 request.Owner.Phone.Trim(),
                 request.Owner.AddressStreet.Trim(),
                 postcode,
-                request.Owner.AddressCity?.Trim(),
-                emailVerified: false);
+                request.Owner.AddressCity?.Trim());
             _db.Owners.Add(owner);
         }
 
@@ -186,8 +185,7 @@ public sealed class PublicBookingService
                 stableAddress: request.Owner.AddressStreet.Trim(),
                 stablePostcode: postcode,
                 stableCity: request.Owner.AddressCity?.Trim(),
-                background: request.Horse.KnownIssues?.Trim(),
-                emailVerified: false);
+                background: request.Horse.KnownIssues?.Trim());
             _db.Horses.Add(horse);
         }
 
@@ -249,8 +247,6 @@ public sealed class PublicBookingService
             throw new KeyNotFoundException("Not found.");
 
         line.MarkEmailVerified();
-        line.Owner.MarkEmailVerified();
-        line.Horse.MarkEmailVerified();
 
         var treatment = line.TreatmentType;
         if (!treatment.RequiresApproval)

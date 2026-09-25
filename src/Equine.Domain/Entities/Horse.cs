@@ -22,7 +22,6 @@ public class Horse : SoftDeletableEntity
     public decimal? StableLatitude { get; private set; }
     public decimal? StableLongitude { get; private set; }
     public string? Background { get; private set; }
-    public bool EmailVerified { get; private set; } = true;
     public string Status { get; private set; } = "Aktiv";
     public int? FollowUpOverrideDays { get; private set; }
     public DateTimeOffset? FollowUpSnoozedUntil { get; private set; }
@@ -51,8 +50,7 @@ public class Horse : SoftDeletableEntity
         string? stableCity = null,
         decimal? stableLatitude = null,
         decimal? stableLongitude = null,
-        string? background = null,
-        bool emailVerified = true)
+        string? background = null)
     {
         if (birthYear is null && string.IsNullOrWhiteSpace(ageGroup))
             throw new ArgumentException("Either BirthYear or AgeGroup must be set.");
@@ -74,14 +72,7 @@ public class Horse : SoftDeletableEntity
         StableLatitude = stableLatitude;
         StableLongitude = stableLongitude;
         Background = background;
-        EmailVerified = emailVerified;
         CreatedAt = DateTimeOffset.UtcNow;
-        UpdatedAt = DateTimeOffset.UtcNow;
-    }
-
-    public void MarkEmailVerified()
-    {
-        EmailVerified = true;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
