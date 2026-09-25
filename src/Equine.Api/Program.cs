@@ -56,6 +56,8 @@ using System.Text.Json.Serialization;
 using Equine.Infrastructure.Audit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -401,8 +403,8 @@ async Task EnsureDatabaseExists(WebApplication app)
 
     if (!app.Environment.IsProduction())
     {
-        var creator = context.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator>();
-        if (!await creator.ExistsAsync())
+        var creator = context.Database.GetService<IRelationalDatabaseCreator>();
+        if (!await DatabaseExistsAsync(creator))
             await creator.CreateAsync();
 
         await EnsureExtensionAsync(context, "citext");
@@ -418,6 +420,34 @@ async Task EnsureDatabaseExists(WebApplication app)
     await EnsureDefaultTenant(scope.ServiceProvider);
     await BackfillTreatmentSlugs(context);
     await BackfillAnatomyFindingOptions(context);
+}
+
+async Task<bool> DatabaseExistsAsync(IRelationalDatabaseCreator creator)
+{
+    var deadline = DateTime.UtcNow.AddSeconds(60);
+    while (true)
+    {
+        try
+        {
+            return await creator.ExistsAsync();
+        }
+        catch (Exception ex) when (IsPasswordAuthFailure(ex) && DateTime.UtcNow < deadline)
+        {
+            Log.Warning("Postgres rejected the password (28P01); retrying while the role password is reconciled.");
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+    }
+}
+
+static bool IsPasswordAuthFailure(Exception ex)
+{
+    for (var current = ex; current is not null; current = current.InnerException)
+    {
+        if (current is PostgresException pg && pg.SqlState == "28P01")
+            return true;
+    }
+
+    return false;
 }
 
 async Task EnsureDefaultTenant(IServiceProvider services)

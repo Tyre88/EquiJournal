@@ -20,9 +20,12 @@ The server was reached and it rejected the credentials. This is **not** a networ
 DNS or "Postgres isn't up yet" problem — those produce connection-refused or timeout,
 not `auth_failed`. So `Host=` is right and the password is wrong.
 
-`depends_on: condition: service_healthy` does not protect you here: the compose
-healthcheck is `pg_isready -U postgres`, which checks that the server answers, not that
-the password matches.
+`depends_on: condition: service_healthy` waits until a TCP login with
+`POSTGRES_PASSWORD` succeeds. `pg_isready` alone is not enough — it only checks
+that the server answers — so the healthcheck also runs `psql -h 127.0.0.1`.
+The API additionally retries `28P01` for about 60 seconds inside
+`EnsureDatabaseExists` while that login is still failing. A password that is
+still wrong after both windows takes the process down.
 
 Dokploy generates its own Compose project name (e.g. `equijournal-fullstack-451i7h`),
 so run `docker compose ls` first and substitute it for `-p equilog` in the commands
@@ -126,11 +129,13 @@ that one admin login works.
 
 ## Why the failure is fatal rather than retried
 
-`EnsureDatabaseExists` runs before `app.Run()` and has no retry or backoff around the
-initial connection, so a bad credential takes the process down instead of leaving a
-degraded-but-running API. That is the intended behaviour — a misconfigured database is
-not something to serve traffic through — but it means the only signal is the crash loop
-in the Dokploy logs.
+`EnsureDatabaseExists` runs before `app.Run()`. It retries only `28P01` for about
+60 seconds, long enough for the in-container password sync to finish. Any other
+connection error, and a password that is still wrong after that window, takes the
+process down instead of leaving a degraded-but-running API. That is the intended
+behaviour — a misconfigured database is not something to serve traffic through —
+but it means the only signal after the retry window is the crash loop in the
+Dokploy logs.
 
 ## Automatic reconciliation (in the `postgres` service)
 
@@ -142,9 +147,13 @@ ALTER USER CURRENT_USER WITH PASSWORD :'pw';
 ```
 
 against the **local unix socket**, where the image's `pg_hba.conf` grants `trust`. That
-works even while TCP password auth is failing, which is the whole point. The effect is
-that `POSTGRES_PASSWORD` becomes authoritative on every deploy instead of only at
-`initdb`, so Step 2A below should not normally be needed any more.
+works even while TCP password auth is failing, which is the whole point. It retries
+`ALTER USER` for about a minute (12 attempts, 5 seconds apart) instead of giving up
+after a few tries. The postgres healthcheck does not pass until a TCP login with
+`POSTGRES_PASSWORD` succeeds, so `api` waits on `service_healthy` rather than
+connecting early. The effect is that `POSTGRES_PASSWORD` becomes authoritative on
+every deploy instead of only at `initdb`, so Step 2A below should not normally be
+needed any more.
 
 It is deliberately built so it cannot make things worse:
 

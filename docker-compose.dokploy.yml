@@ -97,6 +97,10 @@ services:
     #  * It runs in the background and `exec`s the stock entrypoint regardless,
     #    so it CANNOT fail, block or slow down a deploy. Worst case it logs a
     #    failure and the cluster password stays exactly as it was.
+    #  * It retries ALTER USER for about a minute. The healthcheck below does
+    #    not pass until a TCP login with POSTGRES_PASSWORD succeeds, so api
+    #    waits instead of crash-looping on 28P01. A failed sync leaves this
+    #    container running; it just stays unhealthy.
     #
     # The ALTER is fed to psql on STDIN, not via -c. psql only interpolates
     # :'pw' in input it parses itself; with -c the literal `:'pw'` reaches the
@@ -124,7 +128,7 @@ services:
             echo "password-sync: POSTGRES_PASSWORD is empty; skipped." >&2
           else
             i=0
-            while [ $$i -lt 3 ]; do
+            while [ $$i -lt 12 ]; do
               if printf "%s\n" "ALTER USER CURRENT_USER WITH PASSWORD :'pw';" \
                 | psql -q -v ON_ERROR_STOP=1 -v pw="$$POSTGRES_PASSWORD" \
                        -h /var/run/postgresql -U "$$POSTGRES_USER" -d postgres
@@ -133,10 +137,12 @@ services:
                 break
               fi
               i=$$((i + 1))
-              [ $$i -lt 3 ] && echo "password-sync: ALTER USER attempt $$i failed; retrying." >&2
-              sleep 3
+              if [ $$i -lt 12 ]; then
+                echo "password-sync: ALTER USER attempt $$i failed; retrying." >&2
+                sleep 5
+              fi
             done
-            if [ $$i -ge 3 ]; then
+            if [ $$i -ge 12 ]; then
               echo "password-sync: ALTER USER failed; cluster password left unchanged." >&2
               echo "password-sync: reset it by hand -- docs/runbooks/postgres-auth-failure.md" >&2
             fi
@@ -153,11 +159,16 @@ services:
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-equijournal}"]
+      # pg_isready does not check the password. Require the same TCP login the
+      # API uses, and expand the secret at runtime ($$) so Compose does not
+      # bake it into the check command. api waits on service_healthy.
+      test:
+        - CMD-SHELL
+        - 'pg_isready -q -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" && PGPASSWORD="$$POSTGRES_PASSWORD" psql -q -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT 1" >/dev/null'
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 40s
 
   mailpit:
     image: axllent/mailpit:latest
