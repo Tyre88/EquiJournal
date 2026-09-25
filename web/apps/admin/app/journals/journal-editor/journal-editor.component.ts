@@ -17,7 +17,8 @@ import {
 } from '../anatomy-map/anatomy-map.types';
 import {
   STANDARD_ANATOMY_PRESETS,
-  STANDARD_ANATOMY_SECTIONS
+  STANDARD_ANATOMY_SECTIONS,
+  STANDARD_SECTION_LABELS
 } from '../journal-standard-sections';
 import { DraftStoreService } from '../../draft-store.service';
 import { AttachmentQueueService } from '../../attachment-queue.service';
@@ -660,7 +661,11 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
       const isAnatomy = sectionType === 'anatomy-map' || sectionType === 'anatomymap'
         || STANDARD_ANATOMY_PRESETS.has(section.preset)
         || Array.isArray(section.findingOptions);
-      if (isAnatomy && STANDARD_ANATOMY_PRESETS.has(section.preset || DEFAULT_ANATOMY_PRESET)) {
+      // The standard anatomy maps are always rendered separately, so skip the
+      // template's own copies of them. Match on the section key: matching on the
+      // preset would also drop custom sections that simply fall back to the
+      // default preset, silently discarding their saved findings.
+      if (isAnatomy && STANDARD_SECTION_LABELS[section.key]) {
         continue;
       }
       if (sectionType === 'bodymap' && !isAnatomy) {
