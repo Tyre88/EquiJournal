@@ -27,7 +27,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-equijournal};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      # Passed separately so a ';' or quote in the password cannot truncate the
+      # connection string. Program.cs builds ConnectionStrings:Default from these.
+      Postgres__Host: postgres
+      Postgres__Port: "5432"
+      Postgres__Database: ${POSTGRES_DB:-equijournal}
+      Postgres__Username: ${POSTGRES_USER:-postgres}
+      Postgres__Password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       Jwt__Issuer: ${JWT_ISSUER:-Equine.Api}
       Jwt__Audience: ${JWT_AUDIENCE:-EquineClient}
       Jwt__SecurityKey: ${JWT_SECURITY_KEY:?set JWT_SECURITY_KEY}

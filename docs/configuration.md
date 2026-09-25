@@ -28,6 +28,6 @@ All values can be set as environment variables (`Section__Key`). Production: Dok
 | `ASPNETCORE_ENVIRONMENT` | | `Development` / `Production` / `Testing` |
 | `ASPNETCORE_URLS` | Container bind | `http://+:8080` |
 
-`POSTGRES_PASSWORD` in the Dokploy compose stack is re-applied to the Postgres role on every start. The postgres service stays unhealthy until a TCP login with that password succeeds, and the API retries `28P01` for about 60 seconds while that happens. If it still fails after that, see [runbooks/postgres-auth-failure.md](runbooks/postgres-auth-failure.md).
+`POSTGRES_PASSWORD` in the Dokploy compose stack is re-applied to the Postgres role on every start. The API receives it as `Postgres__Password` and builds the Npgsql connection string itself, so a `;` in the password is not truncated. The postgres service stays unhealthy until a TCP login with that password succeeds, and the API retries `28P01` for about 60 seconds while that happens, logging the warning once. If it still fails after that, see [runbooks/postgres-auth-failure.md](runbooks/postgres-auth-failure.md).
 
 HSTS max-age is 180 days in Production (raise after a clean month). Hangfire dashboard: `/hangfire`, admin only.

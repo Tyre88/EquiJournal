@@ -61,6 +61,24 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Compose used to splice POSTGRES_PASSWORD into a ';'-delimited connection string,
+// so a ';' in the password was truncated and TCP auth kept failing with 28P01.
+// Build it here, where Npgsql quotes the value, from the same discrete settings
+// the postgres service uses.
+var pgPassword = builder.Configuration["Postgres:Password"];
+if (!string.IsNullOrEmpty(pgPassword))
+{
+    var connection = new NpgsqlConnectionStringBuilder
+    {
+        Host = builder.Configuration["Postgres:Host"] ?? "postgres",
+        Port = int.TryParse(builder.Configuration["Postgres:Port"], out var pgPort) ? pgPort : 5432,
+        Database = builder.Configuration["Postgres:Database"] ?? "equijournal",
+        Username = builder.Configuration["Postgres:Username"] ?? "postgres",
+        Password = pgPassword,
+    };
+    builder.Configuration["ConnectionStrings:Default"] = connection.ConnectionString;
+}
+
 // ── Serilog ──
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -425,6 +443,7 @@ async Task EnsureDatabaseExists(WebApplication app)
 async Task<bool> DatabaseExistsAsync(IRelationalDatabaseCreator creator)
 {
     var deadline = DateTime.UtcNow.AddSeconds(60);
+    var logged = false;
     while (true)
     {
         try
@@ -433,7 +452,11 @@ async Task<bool> DatabaseExistsAsync(IRelationalDatabaseCreator creator)
         }
         catch (Exception ex) when (IsPasswordAuthFailure(ex) && DateTime.UtcNow < deadline)
         {
-            Log.Warning("Postgres rejected the password (28P01); retrying while the role password is reconciled.");
+            if (!logged)
+            {
+                Log.Warning("Postgres rejected the password (28P01); retrying while the role password is reconciled.");
+                logged = true;
+            }
             await Task.Delay(TimeSpan.FromSeconds(5));
         }
     }

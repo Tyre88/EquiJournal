@@ -40,7 +40,7 @@ tab — you do not need SSH or `docker compose` for this.
 In the **api** service terminal:
 
 ```bash
-printenv ConnectionStrings__Default
+printenv Postgres__Password
 ```
 
 In the **postgres** service terminal:
@@ -49,8 +49,7 @@ In the **postgres** service terminal:
 printenv POSTGRES_PASSWORD
 ```
 
-Compare the `Password=` section of the first against the second, character for
-character. Watch the end of the string especially.
+Compare the two values character for character. Watch the end of the string especially.
 
 - **They differ** → cause B. The password is being mangled on its way into the
   connection string only. Go to Step 2B.
@@ -85,19 +84,21 @@ straight to the server. See the note at the end of this file.
 
 ## Step 2B — the password is mangled before Postgres ever sees it
 
-The API's connection string is assembled in
-[docker-compose.dokploy.yml](../../docker-compose.dokploy.yml) as
-`…;Username=…;Password=${POSTGRES_PASSWORD}`. Two characters break that:
+The API no longer receives a pre-built connection string. Compose passes
+`Postgres__Password` (and host, port, database, user) and
+[Program.cs](../../src/Equine.Api/Program.cs) builds `ConnectionStrings:Default`
+with `NpgsqlConnectionStringBuilder`, which quotes the password. A `;` in the
+password used to terminate the keyword/value pair and produce this same `28P01`
+while Postgres held the full value. One character still breaks the env var
+itself:
 
-- **`;`** — terminates the Npgsql keyword/value pair, silently truncating the password.
-  Postgres itself still receives the full value, so the two sides disagree.
 - **`$`** — Docker Compose interpolates it before either container starts. `pa$$word`
   arrives as `paword`. This one hits both services equally, so they stay consistent
   with each other but neither matches what you typed into Dokploy.
 
 Leading or trailing whitespace will also bite you, and is invisible in the Dokploy UI.
 
-Fix: set `POSTGRES_PASSWORD` to a value containing none of those. `openssl rand -base64
+Fix: set `POSTGRES_PASSWORD` to a value with no `$` and no leading or trailing space. `openssl rand -base64
 48` is safe — it emits only `A-Za-z0-9+/=`, all of which pass through intact. Then run
 **Step 2A as well**, because changing the variable still will not change the stored
 cluster password, and redeploy.
