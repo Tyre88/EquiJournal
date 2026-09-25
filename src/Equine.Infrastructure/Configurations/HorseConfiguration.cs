@@ -24,7 +24,6 @@ public class HorseConfiguration : IEntityTypeConfiguration<Horse>
         builder.Property(h => h.StablePostcode).HasMaxLength(10);
         builder.Property(h => h.StableCity).HasMaxLength(100);
         builder.Property(h => h.Background).HasMaxLength(2000);
-        builder.Property(h => h.EmailVerified).HasDefaultValue(true);
         builder.Property(h => h.Status).HasMaxLength(20).HasDefaultValue("Aktiv");
         builder.Property(h => h.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(h => h.UpdatedAt).HasDefaultValueSql("now()");

@@ -23,7 +23,6 @@ public class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         builder.Property(o => o.UpdatedAt).HasDefaultValueSql("now()");
         builder.Property(o => o.DeletedAt);
 
-        builder.Property(o => o.EmailVerified).HasDefaultValue(true);
         builder.Property(o => o.EmailInvalid).HasDefaultValue(false);
 
         builder.HasIndex(o => new { o.TenantId, o.Email })

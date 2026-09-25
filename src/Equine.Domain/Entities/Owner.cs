@@ -15,7 +15,6 @@ public class Owner : SoftDeletableEntity
     public string? Notes { get; private set; }
     public bool MarketingConsent { get; private set; }
     public DateTimeOffset? MarketingConsentAt { get; private set; }
-    public bool EmailVerified { get; private set; } = true;
     public bool EmailInvalid { get; private set; }
     public Guid? UserId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
@@ -34,8 +33,7 @@ public class Owner : SoftDeletableEntity
         decimal? latitude = null,
         decimal? longitude = null,
         string? notes = null,
-        bool marketingConsent = false,
-        bool emailVerified = true)
+        bool marketingConsent = false)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Email = email ?? throw new ArgumentNullException(nameof(email));
@@ -48,15 +46,7 @@ public class Owner : SoftDeletableEntity
         Notes = notes;
         MarketingConsent = marketingConsent;
         MarketingConsentAt = marketingConsent ? DateTimeOffset.UtcNow : null;
-        EmailVerified = emailVerified;
         CreatedAt = DateTimeOffset.UtcNow;
-        UpdatedAt = DateTimeOffset.UtcNow;
-    }
-
-    public void MarkEmailVerified()
-    {
-        EmailVerified = true;
-        EmailInvalid = false;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 

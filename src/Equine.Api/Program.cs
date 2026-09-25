@@ -747,8 +747,6 @@ async Task EnableExtensions(EquineDbContext context)
             ""UpdatedAt"" timestamptz NOT NULL DEFAULT now()
         );
         ALTER TABLE ""journal_entries"" ADD COLUMN IF NOT EXISTS ""BookingLineId"" uuid NULL;
-        ALTER TABLE ""owners"" ADD COLUMN IF NOT EXISTS ""EmailVerified"" boolean NOT NULL DEFAULT true;
-        ALTER TABLE ""horses"" ADD COLUMN IF NOT EXISTS ""EmailVerified"" boolean NOT NULL DEFAULT true;
         ALTER TABLE ""treatment_types"" ADD COLUMN IF NOT EXISTS ""Slug"" varchar(80) NOT NULL DEFAULT '';
         ALTER TABLE ""booking_lines"" ADD COLUMN IF NOT EXISTS ""EmailVerifiedAt"" timestamptz NULL;
         ALTER TABLE ""booking_lines"" ADD COLUMN IF NOT EXISTS ""PublicReference"" varchar(20) NULL;
