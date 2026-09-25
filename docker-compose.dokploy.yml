@@ -16,8 +16,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       minio:
         condition: service_healthy
       minio-init:
@@ -27,12 +25,13 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
-      # Passed separately so a ';' or quote in the password cannot truncate the
-      # connection string. Program.cs builds ConnectionStrings:Default from these.
-      Postgres__Host: postgres
+      # External Dokploy Postgres (equijournal-production-lwqnp4). Program.cs
+      # builds ConnectionStrings:Default from these so the password is not
+      # spliced into a ';'-delimited string. Set POSTGRES_PASSWORD in Dokploy.
+      Postgres__Host: equijournal-production-lwqnp4
       Postgres__Port: "5432"
-      Postgres__Database: ${POSTGRES_DB:-equijournal}
-      Postgres__Username: ${POSTGRES_USER:-postgres}
+      Postgres__Database: equijurnal
+      Postgres__Username: equi
       Postgres__Password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       Jwt__Issuer: ${JWT_ISSUER:-Equine.Api}
       Jwt__Audience: ${JWT_AUDIENCE:-EquineClient}
@@ -83,98 +82,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    # POSTGRES_PASSWORD is only read by initdb, the first time the
-    # postgres_data volume is created. Rotating it in Dokploy therefore does
-    # NOT change the password of an existing cluster: the API then presents
-    # the new password to a server still holding the old one and dies with
-    # SqlState 28P01 / auth_failed. See docs/runbooks/postgres-auth-failure.md
-    #
-    # This wrapper reconciles the role password with POSTGRES_PASSWORD on
-    # every start, so the variable is authoritative rather than a one-shot.
-    #
-    # Why it is safe:
-    #  * It runs inside this container, against the local unix socket, which
-    #    the image's pg_hba.conf grants `trust` -- so it works even while TCP
-    #    password auth is failing. No shared socket volume, no extra service.
-    #  * It runs in the background and `exec`s the stock entrypoint regardless,
-    #    so it CANNOT fail, block or slow down a deploy. Worst case it logs a
-    #    failure and the cluster password stays exactly as it was.
-    #  * It retries ALTER USER for about a minute. The healthcheck below does
-    #    not pass until a TCP login with POSTGRES_PASSWORD succeeds, so api
-    #    waits instead of crash-looping on 28P01. A failed sync leaves this
-    #    container running; it just stays unhealthy.
-    #
-    # The ALTER is fed to psql on STDIN, not via -c. psql only interpolates
-    # :'pw' in input it parses itself; with -c the literal `:'pw'` reaches the
-    # server and is rejected as a syntax error. Do not "tidy" this into a -c.
-    # The :'pw' form is also what keeps a password containing a quote safe.
-    command:
-      - sh
-      - -c
-      - |
-        (
-          sleep 5
-          ready=no
-          i=0
-          while [ $$i -lt 60 ]; do
-            if pg_isready -q -h /var/run/postgresql -U "$$POSTGRES_USER"; then
-              ready=yes
-              break
-            fi
-            i=$$((i + 1))
-            sleep 1
-          done
-          if [ "$$ready" != yes ]; then
-            echo "password-sync: postgres never became ready; skipped." >&2
-          elif [ -z "$$POSTGRES_PASSWORD" ]; then
-            echo "password-sync: POSTGRES_PASSWORD is empty; skipped." >&2
-          else
-            i=0
-            while [ $$i -lt 12 ]; do
-              if printf "%s\n" "ALTER USER CURRENT_USER WITH PASSWORD :'pw';" \
-                | psql -q -v ON_ERROR_STOP=1 -v pw="$$POSTGRES_PASSWORD" \
-                       -h /var/run/postgresql -U "$$POSTGRES_USER" -d postgres
-              then
-                echo "password-sync: POSTGRES_PASSWORD applied to role $$POSTGRES_USER." >&2
-                break
-              fi
-              i=$$((i + 1))
-              if [ $$i -lt 12 ]; then
-                echo "password-sync: ALTER USER attempt $$i failed; retrying." >&2
-                sleep 5
-              fi
-            done
-            if [ $$i -ge 12 ]; then
-              echo "password-sync: ALTER USER failed; cluster password left unchanged." >&2
-              echo "password-sync: reset it by hand -- docs/runbooks/postgres-auth-failure.md" >&2
-            fi
-          fi
-        ) &
-        exec docker-entrypoint.sh postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-equijournal}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-    networks:
-      - internal
-    healthcheck:
-      # pg_isready does not check the password. Require the same TCP login the
-      # API uses, and expand the secret at runtime ($$) so Compose does not
-      # bake it into the check command. api waits on service_healthy.
-      test:
-        - CMD-SHELL
-        - 'pg_isready -q -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" && PGPASSWORD="$$POSTGRES_PASSWORD" psql -q -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SELECT 1" >/dev/null'
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
 
   mailpit:
     image: axllent/mailpit:latest
@@ -232,7 +139,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
   minio_data:
   mailpit_data:
   api_logs:

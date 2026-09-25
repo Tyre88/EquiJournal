@@ -28,6 +28,6 @@ All values can be set as environment variables (`Section__Key`). Production: Dok
 | `ASPNETCORE_ENVIRONMENT` | | `Development` / `Production` / `Testing` |
 | `ASPNETCORE_URLS` | Container bind | `http://+:8080` |
 
-`POSTGRES_PASSWORD` in the Dokploy compose stack is re-applied to the Postgres role on every start. The API receives it as `Postgres__Password` and builds the Npgsql connection string itself, so a `;` in the password is not truncated. The postgres service stays unhealthy until a TCP login with that password succeeds, and the API retries `28P01` for about 60 seconds while that happens, logging the warning once. If it still fails after that, see [runbooks/postgres-auth-failure.md](runbooks/postgres-auth-failure.md).
+The Dokploy compose stack does not run Postgres. The API connects to `equijournal-production-lwqnp4:5432`, database `equijurnal`, user `equi`, with `POSTGRES_PASSWORD` from the Dokploy environment. It builds the Npgsql connection string from those parts. Local `docker-compose.yml` still runs its own Postgres.
 
 HSTS max-age is 180 days in Production (raise after a clean month). Hangfire dashboard: `/hangfire`, admin only.

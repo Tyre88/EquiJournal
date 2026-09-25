@@ -1,5 +1,7 @@
 # Postgres auth failure on startup (SqlState 28P01)
 
+The Dokploy compose stack no longer runs Postgres. It connects to the external database `equijurnal` on `equijournal-production-lwqnp4` as user `equi`. The steps below apply when a bundled Postgres container is still in the stack.
+
 ## Symptom
 
 The API container exits during startup. The log ends with a Npgsql stack trace through
