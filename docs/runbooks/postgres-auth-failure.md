@@ -43,15 +43,23 @@ PASSWORD`, making `POSTGRES_PASSWORD` authoritative on **every** deploy rather t
 only at `initdb`. A plain redeploy from Dokploy should now clear a rotated-password
 mismatch on its own.
 
-If the API still fails after a redeploy, check that service's logs first:
+The sync step **always exits 0**, deliberately. It can reset a stale password but it
+must never be able to block a deploy — the worst case is the password staying exactly
+as it was, which is where you would be without the step at all. So the deploy
+succeeding tells you nothing; read the log instead:
 
 ```bash
 docker compose -p equilog logs postgres-password-sync
 ```
 
-A failure there blocks `api` from starting (`service_completed_successfully`), so a
-crash-looping deploy with no `api` logs at all points here rather than at the database.
-Fall through to Fix A if the sync service itself cannot run.
+- `password-sync: POSTGRES_PASSWORD applied to role postgres.` — it worked.
+- `password-sync: ALTER USER failed …` — it reached the cluster and the statement was
+  rejected. Fall through to Fix A.
+- `password-sync: no Postgres socket found …` — the shared `postgres_socket` volume is
+  not surfacing the socket, so the step was a no-op. Fall through to Fix A.
+
+Note the project name: Dokploy generates its own (e.g. `equijournal-fullstack-451i7h`),
+so run `docker compose ls` if `-p equilog` finds nothing.
 
 ### Fix A — reset the password in the running cluster (keeps all data, preferred)
 
