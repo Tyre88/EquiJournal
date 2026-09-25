@@ -25,6 +25,9 @@ services:
       mailpit:
         condition: service_started
     environment:
+      # Development is deliberate: the schema is created by EnsureCreatedAsync, which
+      # only runs in the non-Production branch of EnsureDatabaseExists. There are no EF
+      # migrations yet, so Production would start against an empty database.
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-equijournal};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
@@ -81,6 +84,9 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    # POSTGRES_PASSWORD only takes effect when postgres_data is first initialized.
+    # Rotating it afterwards breaks the API with SqlState 28P01 until you run
+    # ALTER USER -- see docs/runbooks/postgres-auth-failure.md.
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-equijournal}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

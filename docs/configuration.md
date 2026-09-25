@@ -28,4 +28,6 @@ All values can be set as environment variables (`Section__Key`). Production: Dok
 | `ASPNETCORE_ENVIRONMENT` | | `Development` / `Production` / `Testing` |
 | `ASPNETCORE_URLS` | Container bind | `http://+:8080` |
 
+`POSTGRES_PASSWORD` in the Dokploy compose stack is consumed by `initdb` on first boot only; rotating it later requires `ALTER USER` against the live cluster ([runbooks/postgres-auth-failure.md](runbooks/postgres-auth-failure.md)).
+
 HSTS max-age is 180 days in Production (raise after a clean month). Hangfire dashboard: `/hangfire`, admin only.
