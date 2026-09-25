@@ -16,11 +16,26 @@
 say() { echo "password-sync: $*"; }
 
 : "${PGUSER:=postgres}"
+: "${SYNC_TCP_HOST:=postgres}"
+: "${SYNC_DB:=postgres}"
 
 if [ -z "${SYNC_PASSWORD:-}" ]; then
     say "SYNC_PASSWORD is empty; nothing to apply. Skipping."
     exit 0
 fi
+
+# Exactly what the API does: authenticate over TCP with the configured password.
+tcp_auth_works() {
+    PGPASSWORD="$SYNC_PASSWORD" psql -h "$SYNC_TCP_HOST" -U "$PGUSER" -d "$SYNC_DB" \
+        -tAc 'SELECT 1' >/dev/null 2>&1
+}
+
+if tcp_auth_works; then
+    say "the configured password already authenticates over TCP; nothing to do."
+    exit 0
+fi
+
+say "configured password does not authenticate over TCP; reconciling the cluster."
 
 # The socket directory differs between images and between /var/run and /run on
 # Alpine, so probe rather than assume. Postgres is already healthy by the time we
@@ -48,13 +63,23 @@ fi
 
 say "using socket $sock, role $PGUSER"
 
-if psql -h "$sock" -d postgres -v ON_ERROR_STOP=1 \
-        -v pw="$SYNC_PASSWORD" \
-        -c "ALTER USER CURRENT_USER WITH PASSWORD :'pw';"
+# The statement goes in on stdin, NOT via -c. psql only performs variable
+# interpolation on input it parses itself; -c hands the string straight to the
+# server, which then chokes on the literal :'pw'. Getting this wrong is what broke
+# the 2026-09-25 deploy. :'pw' (rather than "$SYNC_PASSWORD" spliced into the SQL)
+# lets psql do the literal quoting, so a password containing a single quote is safe.
+if printf "%s\n" "ALTER USER CURRENT_USER WITH PASSWORD :'pw';" |
+    psql -h "$sock" -d "$SYNC_DB" -q -v ON_ERROR_STOP=1 -v pw="$SYNC_PASSWORD"
 then
-    say "POSTGRES_PASSWORD applied to role $PGUSER."
+    if tcp_auth_works; then
+        say "POSTGRES_PASSWORD applied to role $PGUSER and verified over TCP."
+    else
+        say "ALTER USER succeeded but TCP auth still fails."
+        say "Check pg_hba.conf, or a ';' in POSTGRES_PASSWORD truncating the API's"
+        say "connection string -- docs/runbooks/postgres-auth-failure.md."
+    fi
 else
-    say "ALTER USER failed (exit $?); the cluster password was left untouched."
+    say "ALTER USER failed; the cluster password was left untouched."
     say "If the API now reports 28P01, reset it by hand -- docs/runbooks/postgres-auth-failure.md (Fix A)."
 fi
 

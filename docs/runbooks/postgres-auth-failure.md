@@ -52,11 +52,25 @@ succeeding tells you nothing; read the log instead:
 docker compose -p equilog logs postgres-password-sync
 ```
 
-- `password-sync: POSTGRES_PASSWORD applied to role postgres.` — it worked.
-- `password-sync: ALTER USER failed …` — it reached the cluster and the statement was
-  rejected. Fall through to Fix A.
-- `password-sync: no Postgres socket found …` — the shared `postgres_socket` volume is
-  not surfacing the socket, so the step was a no-op. Fall through to Fix A.
+- `… already authenticates over TCP; nothing to do.` — the password was already
+  correct. This is the steady state.
+- `… applied to role postgres and verified over TCP.` — it found a mismatch and fixed
+  it. The verification is a real TCP login with the configured password, i.e. exactly
+  what the API is about to do, so this is proof rather than inference.
+- `… ALTER USER succeeded but TCP auth still fails.` — the role now has the password
+  but logging in with it does not work. Look at `pg_hba.conf`.
+- `… ALTER USER failed …` — it reached the cluster and the statement was rejected.
+  Fall through to Fix A.
+- `… no Postgres socket found …` — the shared `postgres_socket` volume is not
+  surfacing the socket, so the step was a no-op. Fall through to Fix A.
+
+### A trap if you edit this script
+
+The `ALTER USER` goes in on **stdin**, not via `psql -c`. psql only performs variable
+interpolation on input it parses itself; `-c` hands the string straight to the server,
+which then fails with `syntax error at or near ":"` on the literal `:'pw'`. Using
+`:'pw'` rather than splicing the password into the SQL is what makes a password
+containing a single quote safe, so the two go together.
 
 Note the project name: Dokploy generates its own (e.g. `equijournal-fullstack-451i7h`),
 so run `docker compose ls` if `-p equilog` finds nothing.
