@@ -231,38 +231,6 @@
           "defaultConfiguration": "production"
         }
       }
-    },
-    "ui": {
-      "projectType": "library",
-      "root": "libs/ui",
-      "sourceRoot": "libs/ui/src",
-      "prefix": "lib",
-      "architect": {
-        "build": {
-          "builder": "@angular/build:package",
-          "options": {
-            "outputPath": {
-              "base": "dist/libs/ui"
-            },
-            "distPath": "dist/libs/ui",
-            "funding": false,
-            "publishPackage": false,
-            "tsConfig": "libs/ui/tsconfig.lib.json",
-            "project": "libs/ui/ng-package.json"
-          },
-          "configurations": {
-            "production": {
-              "tsConfig": "libs/ui/tsconfig.lib.prod.json"
-            }
-          }
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": ["libs/ui/**/*.ts", "libs/ui/**/*.html"]
-          }
-        }
-      }
     }
   }
 }
