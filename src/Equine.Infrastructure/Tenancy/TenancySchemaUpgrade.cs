@@ -23,8 +23,6 @@ public static class TenancySchemaUpgrade
                 "Status" varchar(20) NOT NULL,
                 "Plan" varchar(20) NOT NULL,
                 "SubscriptionStatus" varchar(20) NOT NULL,
-                "StripeCustomerId" varchar(100) NULL,
-                "StripeSubscriptionId" varchar(100) NULL,
                 "CreatedAt" timestamptz NOT NULL DEFAULT now()
             );
             CREATE UNIQUE INDEX IF NOT EXISTS ix_tenants_slug ON tenants ("Slug");
