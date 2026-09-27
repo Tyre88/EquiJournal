@@ -13,7 +13,7 @@ Alert to the practitioner’s **SMS** (and optionally email). Acceptance: stop t
 
 | Signal | Where | Action |
 |---|---|---|
-| API 5xx spike | Traefik/access logs or Better Stack | Check Serilog `logs/equine-*.log`, recent deploy |
+| API 5xx spike | Traefik/access logs or Better Stack | Check container console logs (Serilog), recent deploy |
 | Failed notifications | Per-failure email already sent; weekly digest counts them | [bounce-storm.md](bounce-storm.md), provider status |
 | Hangfire stalled | `/hangfire` — `dispatch-due` should succeed every minute | [stuck-job-queue.md](stuck-job-queue.md) |
 | Disk > 80% | VPS / Dokploy host metrics | Expand volume, prune unused images |

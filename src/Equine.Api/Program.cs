@@ -49,8 +49,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-using FluentValidation;
-using FluentValidation.AspNetCore;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Equine.Infrastructure.Audit;
@@ -85,7 +83,6 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "Equine.Api")
     .WriteTo.Console()
-    .WriteTo.File("logs/equine-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -189,8 +186,6 @@ builder.Services.AddHttpClient("Osrm", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("HastJournal/1.0 (schema travel)");
     client.Timeout = TimeSpan.FromSeconds(8);
 });
-builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
