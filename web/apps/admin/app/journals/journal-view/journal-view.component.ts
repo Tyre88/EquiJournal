@@ -1,5 +1,4 @@
 import { Component, OnInit, DestroyRef, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -60,7 +59,7 @@ interface JournalData {
 @Component({
   selector: 'app-journal-view',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent, EntityHistoryComponent],
+  imports: [RouterLink, ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent, EntityHistoryComponent],
   template: `
     <div class="page">
       <ej-page-header title="Journal" backHref="/journals">
@@ -402,10 +401,6 @@ export class JournalViewComponent implements OnInit {
         this.savingAmendment.set(false);
       }
     });
-  }
-
-  goBack(): void {
-    this.router.navigate(['/journals']);
   }
 
   statusText(status: string): string {

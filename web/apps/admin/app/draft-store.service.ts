@@ -65,9 +65,4 @@ export class DraftStoreService {
       req.onerror = () => reject(req.error);
     });
   }
-
-  async pending(): Promise<OfflineDraft[]> {
-    const all = await this.getAll();
-    return all.filter(d => d.syncStatus !== 'synced');
-  }
 }
