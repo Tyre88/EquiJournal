@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Equine.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Equine.Domain\Equine.Domain.csproj" />
     <ProjectReference Include="..\Equine.Infrastructure\Equine.Infrastructure.csproj" />
     <ProjectReference Include="..\Equine.Jobs\Equine.Jobs.csproj" />

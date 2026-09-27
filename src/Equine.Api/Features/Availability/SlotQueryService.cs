@@ -12,6 +12,8 @@ public sealed class SlotQueryService
 {
     public static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
 
+    private static readonly TimeZoneInfo Stockholm = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
+
     private readonly EquineDbContext _db;
     private readonly ISlotCache _slotCache;
     private readonly IMemoryCache _memoryCache;
@@ -60,8 +62,8 @@ public sealed class SlotQueryService
         TreatmentType treatment,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = DateTime.SpecifyKind(query.From.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var toUtc = DateTime.SpecifyKind(query.To.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var fromUtc = ToUtcStart(query.From);
+        var toUtc = ToUtcEnd(query.To);
 
         var rules = await _db.AvailabilityRules.AsNoTracking()
             .Where(r => r.PractitionerId == query.PractitionerId && r.Active)
@@ -159,6 +161,14 @@ public sealed class SlotQueryService
 
         return SlotEngine.ResolveZoneId(point.Value.Latitude, point.Value.Longitude, slotZones);
     }
+
+    internal static DateTimeOffset ToUtcStart(DateOnly date)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(local, Stockholm.GetUtcOffset(local)).ToUniversalTime();
+    }
+
+    internal static DateTimeOffset ToUtcEnd(DateOnly date) => ToUtcStart(date.AddDays(1));
 
     private static SlotZone ToSlotZone(Zone z) => new(
         z.Id,
