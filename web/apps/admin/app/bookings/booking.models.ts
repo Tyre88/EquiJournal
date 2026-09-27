@@ -134,12 +134,3 @@ export interface TimeOffItem {
   reason?: string;
   recurringAnnual: boolean;
 }
-
-export interface LocationItem {
-  id: string;
-  type: string;
-  name: string;
-  addressStreet?: string;
-  addressPostcode?: string;
-  addressCity?: string;
-}

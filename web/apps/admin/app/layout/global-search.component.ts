@@ -11,7 +11,6 @@ interface SearchResults {
 }
 
 const RECENT_KEY = 'equine:recent-searches';
-const RECENT_ITEMS_KEY = 'equine:recent-items';
 
 @Component({
   selector: 'app-global-search',
@@ -44,7 +43,7 @@ const RECENT_ITEMS_KEY = 'equine:recent-items';
               <p class="section-label">Kunder</p>
               <ul class="search-results">
                 @for (c of r.clients; track c.id) {
-                  <li><button type="button" (click)="go('/owners/' + c.id, c.name)">{{ c.name }}</button></li>
+                  <li><button type="button" (click)="go('/owners/' + c.id)">{{ c.name }}</button></li>
                 }
               </ul>
             }
@@ -52,7 +51,7 @@ const RECENT_ITEMS_KEY = 'equine:recent-items';
               <p class="section-label">Hästar</p>
               <ul class="search-results">
                 @for (h of r.horses; track h.id) {
-                  <li><button type="button" (click)="go('/horses/' + h.id, h.name)">{{ h.name }} · {{ h.ownerName }}</button></li>
+                  <li><button type="button" (click)="go('/horses/' + h.id)">{{ h.name }} · {{ h.ownerName }}</button></li>
                 }
               </ul>
             }
@@ -60,7 +59,7 @@ const RECENT_ITEMS_KEY = 'equine:recent-items';
               <p class="section-label">Journaler</p>
               <ul class="search-results">
                 @for (j of r.journals; track j.id) {
-                  <li><button type="button" (click)="go('/journals/' + j.id, j.horseName)">{{ j.horseName }} · {{ j.ownerName }}</button></li>
+                  <li><button type="button" (click)="go('/journals/' + j.id)">{{ j.horseName }} · {{ j.ownerName }}</button></li>
                 }
               </ul>
             }
@@ -68,7 +67,7 @@ const RECENT_ITEMS_KEY = 'equine:recent-items';
               <p class="section-label">Bokningar</p>
               <ul class="search-results">
                 @for (b of r.bookings; track b.id) {
-                  <li><button type="button" (click)="go('/bookings/' + b.id, b.treatmentName)">{{ b.treatmentName }} · {{ b.horseName }}</button></li>
+                  <li><button type="button" (click)="go('/bookings/' + b.id)">{{ b.treatmentName }} · {{ b.horseName }}</button></li>
                 }
               </ul>
             }
@@ -119,9 +118,8 @@ export class GlobalSearchComponent implements OnInit {
     this.api.get<SearchResults>('/api/app/search', { q, limit: 8 }).subscribe(r => this.results.set(r));
   }
 
-  go(path: string, label: string): void {
+  go(path: string): void {
     this.saveSearch(this.query);
-    this.saveRecentItem(path, label);
     this.close();
     this.router.navigateByUrl(path);
   }
@@ -131,13 +129,5 @@ export class GlobalSearchComponent implements OnInit {
     const list = [q, ...this.recentSearches().filter(s => s !== q)].slice(0, 8);
     this.recentSearches.set(list);
     localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-  }
-
-  private saveRecentItem(path: string, label: string): void {
-    try {
-      const items = JSON.parse(localStorage.getItem(RECENT_ITEMS_KEY) ?? '[]') as { path: string; label: string }[];
-      const next = [{ path, label }, ...items.filter(i => i.path !== path)].slice(0, 10);
-      localStorage.setItem(RECENT_ITEMS_KEY, JSON.stringify(next));
-    } catch { /* ignore */ }
   }
 }

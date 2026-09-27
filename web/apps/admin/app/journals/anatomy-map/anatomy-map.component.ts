@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   AnatomyAnnotation,
   AnatomyRegion,
@@ -26,7 +25,6 @@ const STROKE_WIDTH = 1.2;
 @Component({
   selector: 'app-anatomy-map',
   standalone: true,
-  imports: [CommonModule],
   template: `
     <div class="anatomy-map">
       <p class="hint">{{ hintText }}</p>

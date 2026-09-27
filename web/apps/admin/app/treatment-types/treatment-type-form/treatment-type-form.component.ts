@@ -2,7 +2,6 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
 import { environment } from '../../../environments/environment';
 import { EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { TemplateBuilderComponent } from '../template-builder/template-builder.component';
@@ -33,7 +32,7 @@ interface TreatmentType {
 @Component({
   selector: 'app-treatment-type-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TemplateBuilderComponent, EjPageHeaderComponent],
+  imports: [ReactiveFormsModule, TemplateBuilderComponent, EjPageHeaderComponent],
   template: `
     <div class="page page--narrow">
       <ej-page-header [title]="isEdit ? 'Redigera behandlingstyp' : 'Ny behandlingstyp'" backHref="/treatment-types" />

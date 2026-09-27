@@ -1,6 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { publicApi, PublicApiError } from './public-api';
+import { publicApi } from './public-api';
 
 @Component({
   selector: 'app-verify',
@@ -25,8 +25,8 @@ export class VerifyComponent implements OnInit {
     try {
       await publicApi.verify(token);
       this.state.set('ok');
-    } catch (err) {
-      this.state.set(err instanceof PublicApiError ? 'fail' : 'fail');
+    } catch {
+      this.state.set('fail');
     }
   }
 }

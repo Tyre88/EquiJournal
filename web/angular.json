@@ -95,12 +95,6 @@
             }
           },
           "defaultConfiguration": "development"
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": ["apps/admin/**/*.ts", "apps/admin/**/*.html"]
-          }
         }
       }
     },
@@ -186,12 +180,6 @@
             }
           },
           "defaultConfiguration": "development"
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": ["apps/widget/**/*.ts", "apps/widget/**/*.html"]
-          }
         }
       }
     },
@@ -254,12 +242,6 @@
             "production": {
               "tsConfig": "libs/ui/tsconfig.lib.prod.json"
             }
-          }
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": ["libs/ui/**/*.ts", "libs/ui/**/*.html"]
           }
         }
       }
