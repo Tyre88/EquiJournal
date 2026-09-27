@@ -54,7 +54,6 @@ public class EquineDbContext : IdentityDbContext<
     public DbSet<ScheduledNotification> ScheduledNotifications { get; set; } = null!;
     public DbSet<NotificationLog> NotificationLog { get; set; } = null!;
     public DbSet<InAppNotification> InAppNotifications { get; set; } = null!;
-    public DbSet<WebPushEndpoint> WebPushEndpoints { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

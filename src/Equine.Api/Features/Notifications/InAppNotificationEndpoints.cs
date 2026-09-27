@@ -43,27 +43,6 @@ public static class InAppNotificationEndpoints
             return Results.Ok();
         }).WithName("ReadAllInAppNotifications");
 
-        group.MapPost("/push-subscription", async (
-            PushSubscribeRequest request,
-            HttpContext http,
-            EquineDbContext db,
-            CancellationToken ct) =>
-        {
-            var userId = CurrentUser.GetUserId(http);
-            if (userId is null) return Results.Unauthorized();
-            if (string.IsNullOrWhiteSpace(request.Endpoint)) return Results.BadRequest();
-            var existing = await db.WebPushEndpoints.FirstOrDefaultAsync(e => e.Endpoint == request.Endpoint, ct);
-            if (existing is null)
-            {
-                db.WebPushEndpoints.Add(new Equine.Domain.Entities.WebPushEndpoint(
-                    userId.Value, request.Endpoint, request.P256dh ?? "", request.Auth ?? ""));
-                await db.SaveChangesAsync(ct);
-            }
-            return Results.Ok();
-        }).WithName("SubscribeWebPush");
-
         return app;
     }
 }
-
-public sealed record PushSubscribeRequest(string Endpoint, string? P256dh, string? Auth);
