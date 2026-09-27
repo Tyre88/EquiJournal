@@ -12,7 +12,6 @@ A client may request erasure. Journals that must be kept under SJVFS 2023:19 / l
 | Horse without signed journals | Soft-delete / archive |
 | Bookings not tied to a retained journal | Cancelled/completed rows may be deleted or anonymised after the booking is no longer needed |
 | Notification log rows for that email | Already purged at 12 months; can delete earlier if no legal hold |
-| Web-push endpoints | Delete |
 
 ## Retain (legal obligation)
 

@@ -16,7 +16,6 @@ public sealed class NotificationDispatcher
     private readonly ISmsSender _sms;
     private readonly NotificationSettingsService _settings;
     private readonly PracticeSettingsService _practice;
-    private readonly IWebPushSender _push;
     private readonly ITenantContext _tenant;
     private readonly TenantProvisioningService _provisioning;
 
@@ -26,7 +25,6 @@ public sealed class NotificationDispatcher
         ISmsSender sms,
         NotificationSettingsService settings,
         PracticeSettingsService practice,
-        IWebPushSender push,
         ITenantContext tenant,
         TenantProvisioningService provisioning)
     {
@@ -35,7 +33,6 @@ public sealed class NotificationDispatcher
         _sms = sms;
         _settings = settings;
         _practice = practice;
-        _push = push;
         _tenant = tenant;
         _provisioning = provisioning;
     }
@@ -152,10 +149,7 @@ public sealed class NotificationDispatcher
         else
         {
             if (Guid.TryParse(row.Recipient, out var userId))
-            {
                 _db.InAppNotifications.Add(new InAppNotification(userId, row.Type, subject, body, values.GetValueOrDefault("länk")));
-                await _push.SendAsync(userId, subject, body, cancellationToken);
-            }
         }
 
         row.MarkSent(providerId);
