@@ -1,4 +1,5 @@
 using Equine.Domain.Entities;
+using Equine.Domain.Scheduling;
 using Equine.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,8 +16,8 @@ public sealed class ReportService
     public async Task<IReadOnlyList<TreatmentPeriodRow>> TreatmentsPerPeriodAsync(
         DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcStart(from);
-        var end = ToUtcEnd(to);
+        var start = StockholmTime.ToUtcStart(from);
+        var end = StockholmTime.ToUtcEnd(to);
 
         var entries = await _db.JournalEntries
             .Where(j => j.Status == JournalStatus.Signed
@@ -44,8 +45,8 @@ public sealed class ReportService
     public async Task<IReadOnlyList<RevenueRow>> RevenueOverviewAsync(
         DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcStart(from);
-        var end = ToUtcEnd(to);
+        var start = StockholmTime.ToUtcStart(from);
+        var end = StockholmTime.ToUtcEnd(to);
 
         var lines = await _db.BookingLines
             .Include(l => l.Visit)
@@ -132,8 +133,8 @@ public sealed class ReportService
     public async Task<IReadOnlyList<NoShowRow>> NoShowsAsync(
         DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcStart(from);
-        var end = ToUtcEnd(to);
+        var start = StockholmTime.ToUtcStart(from);
+        var end = StockholmTime.ToUtcEnd(to);
 
         var lines = await _db.BookingLines
             .Include(l => l.Visit)
@@ -195,8 +196,8 @@ public sealed class ReportService
     public async Task<IReadOnlyList<BookingSourceRow>> BookingSourcesAsync(
         DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcStart(from);
-        var end = ToUtcEnd(to);
+        var start = StockholmTime.ToUtcStart(from);
+        var end = StockholmTime.ToUtcEnd(to);
 
         var lines = await _db.BookingLines
             .Include(l => l.Visit)
@@ -220,14 +221,6 @@ public sealed class ReportService
         var local = TimeZoneInfo.ConvertTime(value, Stockholm).DateTime;
         return new DateOnly(local.Year, local.Month, 1);
     }
-
-    private static DateTimeOffset ToUtcStart(DateOnly date)
-    {
-        var local = date.ToDateTime(TimeOnly.MinValue);
-        return new DateTimeOffset(local, Stockholm.GetUtcOffset(local)).ToUniversalTime();
-    }
-
-    private static DateTimeOffset ToUtcEnd(DateOnly date) => ToUtcStart(date.AddDays(1));
 }
 
 public sealed record TreatmentPeriodRow(DateOnly Month, string TreatmentName, int Count, decimal RevenueEstimate);
