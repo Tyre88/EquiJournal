@@ -1,4 +1,3 @@
-using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +26,7 @@ public sealed class TenantResolutionMiddleware
         {
             var row = await db.Tenants.AsNoTracking()
                 .FirstOrDefaultAsync(t => t.Slug == slug, context.RequestAborted);
-            if (row is null || row.Status == TenantStatus.Suspended)
+            if (row is null)
             {
                 if (path.StartsWithSegments("/api"))
                 {
@@ -48,7 +47,7 @@ public sealed class TenantResolutionMiddleware
             {
                 var row = await db.Tenants.AsNoTracking()
                     .FirstOrDefaultAsync(t => t.Id == id, context.RequestAborted);
-                if (row is null || row.Status == TenantStatus.Suspended)
+                if (row is null)
                 {
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     await context.Response.WriteAsJsonAsync(new { message = "Verksamheten är inte aktiv." });

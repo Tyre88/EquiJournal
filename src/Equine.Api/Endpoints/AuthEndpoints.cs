@@ -202,10 +202,7 @@ public static class AuthEndpoints
             new("tenantId", user.TenantId.ToString())
         };
         foreach (var role in roles)
-        {
-            claims.Add(new Claim("role", role));
             claims.Add(new Claim(ClaimTypes.Role, role));
-        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

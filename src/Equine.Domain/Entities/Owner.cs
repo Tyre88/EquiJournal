@@ -107,6 +107,4 @@ public class Owner : SoftDeletableEntity
         }
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-
-    public string ToSearchVector() => $"{Name} {Email} {Phone} {AddressCity}";
 }

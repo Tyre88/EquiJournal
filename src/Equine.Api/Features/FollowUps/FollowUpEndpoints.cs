@@ -74,8 +74,8 @@ public static class FollowUpEndpoints
                 return Results.BadRequest(new { error = "Kunden saknar giltig e-post." });
             var p = await practice.GetAsync(ct);
             var w = await widget.GetAsync(ct);
-            var payload = await FollowUpNotificationHelper.BuildPayloadAsync(
-                horse, p.Clinic, w.PublicBaseUrl, db, ct);
+            var payload = FollowUpNotificationHelper.BuildPayload(
+                horse, p.Clinic, w.PublicBaseUrl);
             await scheduler.EnqueueAsync(
                 NotificationType.FollowUpDue,
                 NotificationChannel.Email,

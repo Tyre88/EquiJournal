@@ -41,8 +41,6 @@ public class ScheduledNotification : TenantScopedEntity
 
     public void Reschedule(DateTimeOffset when) => ScheduledFor = when;
 
-    public void MarkSending() => Status = NotificationDeliveryStatus.Sending;
-
     public void MarkAttempt(string? error)
     {
         Attempts++;

@@ -61,11 +61,4 @@ public class Location : TenantScopedEntity
         NormalizedKey = AddressNormalization.IsEmptyKey(key) ? $"id:{Id:N}" : key;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-
-    public string DisplayAddress()
-    {
-        var parts = new[] { AddressStreet, AddressPostcode, AddressCity }
-            .Where(p => !string.IsNullOrWhiteSpace(p));
-        return string.Join(", ", parts);
-    }
 }

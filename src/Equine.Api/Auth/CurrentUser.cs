@@ -7,8 +7,7 @@ public static class CurrentUser
     public static Guid? GetUserId(HttpContext context)
     {
         var raw = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? context.User.FindFirstValue("sub")
-            ?? context.User.FindFirstValue(JwtRegisteredClaimNamesFallback);
+            ?? context.User.FindFirstValue("sub");
         return Guid.TryParse(raw, out var id) ? id : null;
     }
 
@@ -21,12 +20,4 @@ public static class CurrentUser
     }
 
     public static string? GetActorId(HttpContext context) => GetUserId(context)?.ToString();
-
-    public static Guid? GetTenantId(HttpContext context)
-    {
-        var raw = context.User.FindFirstValue("tenantId");
-        return Guid.TryParse(raw, out var id) && id != Guid.Empty ? id : null;
-    }
-
-    private const string JwtRegisteredClaimNamesFallback = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
 }
