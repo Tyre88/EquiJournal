@@ -1,9 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Notifications;
 using Equine.Infrastructure.Practice;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +18,7 @@ public static class WebhookEndpoints
         app.MapPost("/api/public/webhooks/postmark", async (
             HttpRequest request,
             EquineDbContext db,
+            ITenantContext tenant,
             INotificationScheduler scheduler,
             PracticeSettingsService practice,
             IOptions<Equine.Infrastructure.Email.PostmarkOptions> options,
@@ -34,9 +37,10 @@ public static class WebhookEndpoints
             if (string.IsNullOrWhiteSpace(messageId))
                 return Results.Ok();
 
-            var log = await db.NotificationLog.FirstOrDefaultAsync(l => l.ProviderMessageId == messageId, ct);
+            var log = await FindLogByProviderMessageIdAsync(db, messageId, ct);
             if (log is not null)
             {
+                tenant.SetTenant(log.TenantId);
                 log.UpdateDelivery(recordType ?? "Updated", payload[..Math.Min(payload.Length, 500)]);
                 if (string.Equals(recordType, "Bounce", StringComparison.OrdinalIgnoreCase)
                     && root.TryGetProperty("Type", out var bounceType)
@@ -50,8 +54,8 @@ public static class WebhookEndpoints
                         if (!string.IsNullOrWhiteSpace(p.Email))
                         {
                             await scheduler.EnqueueAsync(
-                                Equine.Domain.Entities.NotificationType.NotificationFailed,
-                                Equine.Domain.Entities.NotificationChannel.Email,
+                                NotificationType.NotificationFailed,
+                                NotificationChannel.Email,
                                 p.Email,
                                 "Owner",
                                 owner.Id,
@@ -70,6 +74,7 @@ public static class WebhookEndpoints
         app.MapPost("/api/public/webhooks/46elks", async (
             HttpRequest request,
             EquineDbContext db,
+            ITenantContext tenant,
             IConfiguration config,
             CancellationToken ct) =>
         {
@@ -83,9 +88,10 @@ public static class WebhookEndpoints
             var status = form["status"].ToString();
             if (string.IsNullOrWhiteSpace(id))
                 return Results.Ok();
-            var log = await db.NotificationLog.FirstOrDefaultAsync(l => l.ProviderMessageId == id, ct);
+            var log = await FindLogByProviderMessageIdAsync(db, id, ct);
             if (log is not null)
             {
+                tenant.SetTenant(log.TenantId);
                 log.UpdateDelivery(string.IsNullOrWhiteSpace(status) ? "Updated" : status, null);
                 await db.SaveChangesAsync(ct);
             }
@@ -94,6 +100,14 @@ public static class WebhookEndpoints
 
         return app;
     }
+
+    private static Task<NotificationLog?> FindLogByProviderMessageIdAsync(
+        EquineDbContext db,
+        string providerMessageId,
+        CancellationToken ct) =>
+        db.NotificationLog
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(l => l.ProviderMessageId == providerMessageId, ct);
 
     private static bool CryptographicEquals(string a, string b)
     {
