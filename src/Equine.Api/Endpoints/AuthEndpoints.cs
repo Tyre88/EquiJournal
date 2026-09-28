@@ -33,7 +33,7 @@ public static class AuthEndpoints
                 ?? await userManager.FindByNameAsync(request.Email);
             if (user is null) return Results.Json(new { error = "invalid_credentials" });
 
-            var result = await signInManager.PasswordSignInAsync(user.UserName!, request.Password, false, true);
+            var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
             if (!result.Succeeded) return Results.Json(new { error = "invalid_credentials" });
 
             Log.Information("Login successful for user {UserId} ({Email})", user.Id, user.Email);
@@ -133,7 +133,6 @@ public static class AuthEndpoints
         group.MapPost("/logout", async (
             HttpContext context,
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager,
             IAuditWriter auditWriter, CancellationToken ct) =>
         {
             var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -147,7 +146,6 @@ public static class AuthEndpoints
                 }
                 await auditWriter.WriteAsync(userId, "LOGOUT", "ApplicationUser", userId, null, null, ct);
             }
-            await signInManager.SignOutAsync();
             return Results.Ok();
         }).RequireAuthorization().WithName("Logout");
 

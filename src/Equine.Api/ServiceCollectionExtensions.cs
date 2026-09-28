@@ -79,12 +79,6 @@ public static class ServiceCollectionExtensions
             .AddPolicy("CanAdminister", policy => policy.RequireRole("Admin"));
 
         services.AddScoped<Auth.ITotpService, Auth.TotpService>();
-        services.ConfigureApplicationCookie(options =>
-        {
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-            options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
-        });
         services.AddHsts(options =>
         {
             options.MaxAge = TimeSpan.FromDays(180);

@@ -18,4 +18,4 @@ M4 requires reliable transactional email and SMS, a durable queue, and several s
 
 ## Consequences
 
-Hangfire dashboard lives at `/hangfire` and requires the Admin role. Staging never talks to Postmark or 46elks regardless of configuration.
+Hangfire runs in-process with no dashboard. Staging never talks to Postmark or 46elks regardless of configuration.

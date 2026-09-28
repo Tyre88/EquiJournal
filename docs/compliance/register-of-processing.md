@@ -10,7 +10,7 @@ GDPR Article 30. Controller: the practitioner / practice named in practice setti
 | 4 | Client portal magic link | Owners with portal access | Email, booking/journal summary if shared | Postmark | As email provider | Session + token TTL | One-time link, security stamp |
 | 5 | Notifications | Owners, practitioner | Email, phone, message content | Postmark, 46elks, in-app store | As providers | 12 months log | Quiet hours, SMS cap |
 | 6 | Marketing broadcasts | Consenting owners | Email, name | Postmark | As email provider | Until withdraw | Consent flag |
-| 7 | Accounts / audit | Practitioner, assistants | Email, display name, login events | Host | No | Account life / journal-aligned audit | JWT, TOTP, Hangfire admin filter |
+| 7 | Accounts / audit | Practitioner, assistants | Email, display name, login events | Host | No | Account life / journal-aligned audit | JWT, TOTP |
 | 8 | Uptime / errors | None intended (IP of probes) | IP, URL, error stacks if GlitchTip/Sentry | Uptime vendor and/or self-hosted GlitchTip | Avoid US-only vendors | Vendor default / self-host | No journal bodies in traces |
 
 No sale of personal data. No automated decision-making with legal effect.
