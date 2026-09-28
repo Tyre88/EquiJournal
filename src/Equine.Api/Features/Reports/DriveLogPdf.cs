@@ -1,4 +1,5 @@
 using System.Globalization;
+using Equine.Infrastructure.Time;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -81,7 +82,7 @@ internal static class DriveLogPdf
                     t.CurrentPageNumber();
                     t.Span(" av ");
                     t.TotalPages();
-                    t.Span($"  ·  Utskriven {DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(2)):yyyy-MM-dd HH:mm} Europe/Stockholm");
+                    t.Span($"  ·  Utskriven {AppTimeZone.ToStockholm(DateTimeOffset.UtcNow):yyyy-MM-dd HH:mm} Europe/Stockholm");
                 });
             });
         }).GeneratePdf();

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Equine.Domain.Entities;
 using Equine.Infrastructure.Practice;
+using Equine.Infrastructure.Time;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -120,7 +121,7 @@ public class PdfExportService : IPdfExportService
                         t.CurrentPageNumber();
                         t.Span(" av ");
                         t.TotalPages();
-                        t.Span($"  ·  Utskriven {DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(2)):yyyy-MM-dd HH:mm} Europe/Stockholm");
+                        t.Span($"  ·  Utskriven {AppTimeZone.ToStockholm(DateTimeOffset.UtcNow):yyyy-MM-dd HH:mm} Europe/Stockholm");
                     });
                 });
             });
