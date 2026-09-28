@@ -129,7 +129,8 @@ public sealed class NotificationJobs
                     nameof(JournalEntry),
                     journal.Id,
                     DateTimeOffset.UtcNow,
-                    payload);
+                    payload,
+                    ct);
             }
             if (journal.CreatedBy != Guid.Empty)
             {
@@ -140,7 +141,8 @@ public sealed class NotificationJobs
                     nameof(JournalEntry),
                     journal.Id,
                     DateTimeOffset.UtcNow,
-                    payload);
+                    payload,
+                    ct);
             }
         }
     }
@@ -298,7 +300,7 @@ public sealed class NotificationJobs
         var log = scope.ServiceProvider.GetRequiredService<ILogger<NotificationJobs>>();
         var domain = config["Notifications:SendingDomain"];
         if (string.IsNullOrWhiteSpace(domain)) return;
-        var checker = new DnsDeliverabilityChecker();
+        var checker = scope.ServiceProvider.GetRequiredService<DnsDeliverabilityChecker>();
         var result = await checker.CheckAsync(domain);
         if (!result.Passed)
         {

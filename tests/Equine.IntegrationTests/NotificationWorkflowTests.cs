@@ -452,8 +452,14 @@ public class NotificationWorkflowTests : IClassFixture<EquineApiFactory>
         var jobs = scope.ServiceProvider.GetRequiredService<Equine.Jobs.NotificationJobs>();
         await jobs.ScanUnsignedJournals();
         await DispatchDueAsync();
-        _factory.Services.GetRequiredService<RecordingEmailSender>().Sent
-            .ShouldContain(m => m.Subject.Contains("Osignerad", StringComparison.OrdinalIgnoreCase));
+        var sender = _factory.Services.GetRequiredService<RecordingEmailSender>();
+        sender.Sent.ShouldContain(m => m.Subject.Contains("Osignerad", StringComparison.OrdinalIgnoreCase));
+        var unsignedMailCount = sender.Sent.Count(m => m.Subject.Contains("Osignerad", StringComparison.OrdinalIgnoreCase));
+
+        await jobs.ScanUnsignedJournals();
+        await DispatchDueAsync();
+        sender.Sent.Count(m => m.Subject.Contains("Osignerad", StringComparison.OrdinalIgnoreCase))
+            .ShouldBe(unsignedMailCount);
     }
 
     private async Task DispatchDueAsync()
