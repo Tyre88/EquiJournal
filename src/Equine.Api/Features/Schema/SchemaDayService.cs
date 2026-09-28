@@ -58,13 +58,7 @@ public sealed class SchemaDayService
             var coords = await _places.ResolveStopCoordsAsync(location, line, cancellationToken);
             if (location is not null && coords is not null && (location.Latitude is null || location.Longitude is null))
             {
-                location.Update(
-                    location.Name,
-                    location.AddressStreet,
-                    location.AddressPostcode,
-                    location.AddressCity,
-                    (decimal)coords.Value.Lat,
-                    (decimal)coords.Value.Lon);
+                location.SetCoordinates((decimal)coords.Value.Lat, (decimal)coords.Value.Lon);
                 locationsDirty = true;
             }
 

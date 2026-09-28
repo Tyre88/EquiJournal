@@ -24,7 +24,6 @@ interface TreatmentType {
   requiresApproval: boolean;
   minNoticeHours: number;
   maxAdvanceDays: number;
-  allowedLocationTypes?: string;
   followUpIntervalDays?: number | null;
   journalTemplateJson?: string;
   isActive: boolean;
@@ -261,7 +260,6 @@ export class TreatmentTypeFormComponent implements OnInit {
   loading = signal(false);
   isEdit = false;
   treatmentId = signal<string>('');
-  private preservedAllowedLocationTypes: string | null = null;
 
   showTemplateBuilder = signal(false);
   templateJson = signal('');
@@ -316,7 +314,6 @@ export class TreatmentTypeFormComponent implements OnInit {
     this.loading.set(true);
     this.http.get<TreatmentType>(`${environment.apiUrl}/api/app/treatment-types/${id}`).subscribe({
       next: (type) => {
-        this.preservedAllowedLocationTypes = type.allowedLocationTypes ?? null;
         this.treatmentForm.patchValue({
           name: type.name,
           slug: type.slug || '',
@@ -389,7 +386,6 @@ export class TreatmentTypeFormComponent implements OnInit {
       requiresApproval: formValue.requiresApproval,
       minNoticeHours: formValue.minNoticeHours,
       maxAdvanceDays: formValue.maxAdvanceDays,
-      allowedLocationTypes: this.preservedAllowedLocationTypes,
       followUpIntervalDays: formValue.followUpIntervalDays === '' ? null : formValue.followUpIntervalDays,
       journalTemplateJson: this.templateJson() || null
     };

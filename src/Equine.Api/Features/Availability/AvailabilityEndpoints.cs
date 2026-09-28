@@ -15,7 +15,6 @@ public static class AvailabilityEndpoints
     public static IEndpointRouteBuilder MapAvailabilityEndpoints(this IEndpointRouteBuilder app)
     {
         var zones = app.MapGroup("/api/app/zones").RequireAuthorization("CanManageBookings");
-        var locations = app.MapGroup("/api/app/locations").RequireAuthorization("CanManageBookings");
         var rules = app.MapGroup("/api/app/availability-rules").RequireAuthorization("CanManageBookings");
         var timeOff = app.MapGroup("/api/app/time-off").RequireAuthorization("CanManageBookings");
         var slots = app.MapGroup("/api/app/availability").RequireAuthorization("CanManageBookings");
@@ -90,41 +89,6 @@ public static class AvailabilityEndpoints
             cache.InvalidateAll();
             return Results.Ok();
         }).WithName("DeleteZone");
-
-        locations.MapGet("/", async (EquineDbContext db) =>
-            Results.Ok(await db.Locations.OrderBy(l => l.Name).ToListAsync())).WithName("ListLocations");
-
-        locations.MapGet("/{id:guid}", async (Guid id, EquineDbContext db) =>
-        {
-            var location = await db.Locations.FindAsync(id);
-            return location is null ? Results.NotFound() : Results.Ok(location);
-        }).WithName("GetLocation");
-
-        locations.MapPost("/", async (LocationRequest request, EquineDbContext db, ISlotCache cache) =>
-        {
-            var location = new Location(
-                request.Type,
-                request.Name,
-                request.AddressStreet,
-                request.AddressPostcode,
-                request.AddressCity,
-                request.Latitude,
-                request.Longitude);
-            db.Locations.Add(location);
-            await db.SaveChangesAsync();
-            cache.InvalidateAll();
-            return Results.Created($"/api/app/locations/{location.Id}", location);
-        }).WithName("CreateLocation");
-
-        locations.MapPut("/{id:guid}", async (Guid id, LocationRequest request, EquineDbContext db, ISlotCache cache) =>
-        {
-            var location = await db.Locations.FindAsync(id);
-            if (location is null) return Results.NotFound();
-            location.Update(request.Name, request.AddressStreet, request.AddressPostcode, request.AddressCity, request.Latitude, request.Longitude);
-            await db.SaveChangesAsync();
-            cache.InvalidateAll();
-            return Results.Ok(location);
-        }).WithName("UpdateLocation");
 
         rules.MapGet("/", async (EquineDbContext db, HttpContext http, [FromQuery] Guid? practitionerId) =>
         {
@@ -335,14 +299,6 @@ public static class AvailabilityEndpoints
         double? BufferKm = null,
         int TravelBufferMinutes = 0,
         bool ClearGeometry = false);
-    public record LocationRequest(
-        LocationType Type,
-        string Name,
-        string? AddressStreet = null,
-        string? AddressPostcode = null,
-        string? AddressCity = null,
-        decimal? Latitude = null,
-        decimal? Longitude = null);
     public record RuleRequest(
         DayOfWeek DayOfWeek,
         TimeOnly StartTime,

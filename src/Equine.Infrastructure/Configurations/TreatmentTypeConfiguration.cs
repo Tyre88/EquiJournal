@@ -17,7 +17,6 @@ public class TreatmentTypeConfiguration : IEntityTypeConfiguration<TreatmentType
         builder.Property(t => t.ShortDescription).HasMaxLength(500).IsRequired();
         builder.Property(t => t.PublicDescription).HasMaxLength(2000);
         builder.Property(t => t.Colour).HasMaxLength(20);
-        builder.Property(t => t.AllowedLocationTypes).HasMaxLength(500);
         builder.Property(t => t.JournalTemplateJson).HasColumnType("jsonb");
         builder.Property(t => t.Status).HasConversion<string>().HasMaxLength(20).HasDefaultValue(TreatmentTypeStatus.Active);
         builder.Property(t => t.CreatedAt).HasDefaultValueSql("now()");

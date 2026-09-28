@@ -43,22 +43,10 @@ public class Location : TenantScopedEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public void Update(
-        string? name = null,
-        string? addressStreet = null,
-        string? addressPostcode = null,
-        string? addressCity = null,
-        decimal? latitude = null,
-        decimal? longitude = null)
+    public void SetCoordinates(decimal latitude, decimal longitude)
     {
-        if (name is not null) Name = name;
-        AddressStreet = addressStreet;
-        AddressPostcode = addressPostcode;
-        AddressCity = addressCity;
         Latitude = latitude;
         Longitude = longitude;
-        var key = AddressNormalization.LocationKey(addressStreet, addressPostcode, addressCity);
-        NormalizedKey = AddressNormalization.IsEmptyKey(key) ? $"id:{Id:N}" : key;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
