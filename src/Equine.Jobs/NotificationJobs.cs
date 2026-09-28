@@ -44,6 +44,7 @@ public sealed class NotificationJobs
     {
         var db = services.GetRequiredService<EquineDbContext>();
         var scheduler = services.GetRequiredService<INotificationScheduler>();
+        var tenant = services.GetRequiredService<ITenantContext>();
         var practice = services.GetRequiredService<PracticeSettingsService>();
         var widget = services.GetRequiredService<WidgetSettingsService>();
         var settings = await practice.GetAsync();
@@ -77,7 +78,7 @@ public sealed class NotificationJobs
             if (recentlySent) continue;
 
             var payload = await FollowUpNotificationHelper.BuildPayloadAsync(
-                horse, settings.Clinic, widgetSettings.PublicBaseUrl, db);
+                horse, settings.Clinic, widgetSettings.PublicBaseUrl, tenant.Slug ?? "default", db);
             if (!string.IsNullOrWhiteSpace(horse.Owner.Email) && !horse.Owner.EmailInvalid)
             {
                 await scheduler.EnqueueAsync(

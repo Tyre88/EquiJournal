@@ -18,6 +18,7 @@ public static class MergeFields
         "referens",
         "portalänk",
         "portallank",
+        "länk",
         "magiclänk",
         "magiclank"
     };
