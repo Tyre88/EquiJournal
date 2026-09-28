@@ -1,4 +1,4 @@
-import { Component, OnInit, DestroyRef, OnChanges, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, DestroyRef, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -499,19 +499,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     }
   });
 
-  bodymapOpen = signal(false);
-  bodymapFieldKey = signal('');
-  bodymapFieldLabel = computed(() => {
-    const key = this.bodymapFieldKey();
-    const sections = this.templateFields();
-    for (const sec of sections) {
-      for (const f of sec.fields) {
-        if (f.key === key) return f.label;
-      }
-    }
-    return '';
-  });
-
   showSignDialog = signal(false);
   anatomyImageUrls = signal<Record<string, string>>({});
 
@@ -763,16 +750,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     return ctrl?.value ?? '';
   }
 
-  openBodymap(key: string): void {
-    this.bodymapFieldKey.set(key);
-    this.bodymapOpen.set(true);
-  }
-
-  closeBodymap(): void {
-    this.bodymapOpen.set(false);
-    this.bodymapFieldKey.set('');
-  }
-
   bodyMapMarkers(key: string): BodyMapMarker[] {
     const raw = this.form.get('tpl_' + key)?.value;
     if (!raw) return [];
@@ -877,7 +854,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     ctrl.setValue(values);
   }
 
-  // Horse search
   onHorseSearch(event: Event): void {
     const query = (event.target as HTMLInputElement).value;
     this.horseSearchQuery.set(query);
@@ -921,7 +897,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     this.form.get('horseId')?.setValue('');
   }
 
-  // File upload
   onFileSelect(event: Event): void {
     const files = (event.target as HTMLInputElement).files;
     if (!files) return;
@@ -1027,7 +1002,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
       });
   }
 
-  // Autosave
   private startAutosave(): void {
     this.autosaveTimer = setInterval(() => {
       this.triggerAutosave();
@@ -1046,17 +1020,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
 
     this.saving.set(true);
     this.saveStatus.set('saving');
-
-    const formValue = this.form.value;
-
-    // Build template_data from dynamic fields
-    const templateData: Record<string, any> = {};
-    for (const [key, control] of Object.entries(this.form.controls)) {
-      if (key.startsWith('tpl_')) {
-        const tplKey = key.substring(4);
-        templateData[tplKey] = control.value;
-      }
-    }
 
     const payload = this.buildPayload();
 
@@ -1153,11 +1116,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Navigation
-  goBack(): void {
-    this.router.navigate(['/journals']);
-  }
-
   onFieldBlur(): void {
     const id = this.journalId();
     if (id && id !== 'new') this.saveJournal(id, false);
@@ -1242,7 +1200,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     this.syncStatus.set('synced');
   }
 
-  // Helpers
   getDefaultDateTime(): string {
     const now = new Date();
     const year = now.getFullYear();
