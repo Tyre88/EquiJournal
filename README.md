@@ -52,10 +52,6 @@ Lösenord: `Admin@123456`
 
 Aktivera 2FA under Inställningar → Konto.
 
-### API-klient
-
-Om du ändrar endpoints: starta API:et och kör `npm run generate:api` i `web/`. Committa `libs/api-client`.
-
 ## Testa
 
 ```bash

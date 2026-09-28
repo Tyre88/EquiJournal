@@ -11,7 +11,7 @@
 ## 46elks (SMS)
 
 1. Generate a new API password in 46elks.
-2. Update `Elks:ApiPassword` in secrets.
+2. Update `Elks:Username` and `Elks:Password` in secrets.
 3. Deploy and send a test SMS.
 4. Disable the old credentials.
 

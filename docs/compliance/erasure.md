@@ -33,4 +33,4 @@ A client may request erasure. Journals that must be kept under SJVFS 2023:19 / l
 5. Write an audit note (who requested, date, what was kept).
 6. Confirm in writing.
 
-Application users (`equine_app`) cannot `DELETE` from `journal_entries`, `journal_amendments`, or `audit_log`. Do not work around that with the migrate role unless a court or retention expiry requires it.
+The application role (`equi`) cannot `DELETE` from `journal_entries`, `journal_amendments`, or `audit_log`. Do not work around that with a superuser unless a court or retention expiry requires it.
