@@ -4,6 +4,8 @@
 --
 -- The API connects as equi. This script does not create roles and does not
 -- set passwords. equine_app / equine_migrate are not used by the stack.
+-- Applying it revokes DELETE and TRUNCATE on the journal/audit tables, and
+-- CREATE on schema public, from that login. It does not run on deploy.
 -- Run as a superuser on the cluster that contains equijurnal, after the
 -- schema exists. Local docker-compose uses database equijournal instead.
 
