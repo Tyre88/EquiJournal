@@ -19,7 +19,6 @@ interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   expires: string;
-  requiresTwoFactor?: boolean;
 }
 
 interface User {
@@ -27,7 +26,6 @@ interface User {
   email: string;
   displayName: string;
   roles: string[];
-  twoFactorEnabled: boolean;
   isFirstLogin: boolean;
   tenant?: { id: string; name: string; slug: string; plan: string };
 }
@@ -65,32 +63,15 @@ export class AuthService {
     );
   }
 
-  login(email: string, password: string): Observable<{ requiresTwoFactor: boolean; canProceed?: boolean }> {
+  login(email: string, password: string): Observable<void> {
     return this.http.post<AuthResponse>(`${this.baseUrl}/api/app/auth/login`, { email, password }).pipe(
       switchMap(response => {
         if (!response.accessToken || !response.refreshToken) {
-          return of({ requiresTwoFactor: !!response.requiresTwoFactor });
+          return throwError(() => new Error('Invalid login response'));
         }
 
         this.storeTokens(response);
-
-        if (response.requiresTwoFactor) {
-          return of({ requiresTwoFactor: true });
-        }
-
-        return this.fetchUser().pipe(
-          map(() => ({ requiresTwoFactor: false, canProceed: true }))
-        );
-      }),
-      catchError(error => throwError(() => error))
-    );
-  }
-
-  verify2fa(code: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/api/app/auth/verify-2fa`, { code }).pipe(
-      switchMap(response => {
-        this.storeTokens(response);
-        return this.fetchUser().pipe(map(() => response));
+        return this.fetchUser().pipe(map(() => void 0));
       }),
       catchError(error => throwError(() => error))
     );
