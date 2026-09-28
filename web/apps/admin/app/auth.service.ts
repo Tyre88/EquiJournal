@@ -45,7 +45,6 @@ export class AuthService {
   private baseUrl = environment.apiUrl;
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
 
   private authReadySubject = new BehaviorSubject(false);
   readonly authReady$ = this.authReadySubject.asObservable();
@@ -65,7 +64,7 @@ export class AuthService {
     );
   }
 
-  login(email: string, password: string): Observable<{ requiresTwoFactor: boolean; canProceed?: boolean }> {
+  login(email: string, password: string): Observable<{ requiresTwoFactor: boolean }> {
     return this.http.post<AuthResponse>(`${this.baseUrl}/api/app/auth/login`, { email, password }).pipe(
       switchMap(response => {
         if (!response.accessToken || !response.refreshToken) {
@@ -79,10 +78,9 @@ export class AuthService {
         }
 
         return this.fetchUser().pipe(
-          map(() => ({ requiresTwoFactor: false, canProceed: true }))
+          map(() => ({ requiresTwoFactor: false }))
         );
-      }),
-      catchError(error => throwError(() => error))
+      })
     );
   }
 

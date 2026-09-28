@@ -61,11 +61,6 @@ import { ThemePreference, ThemeService } from '../theme.service';
         <button type="button" class="btn-primary" (click)="verify2fa()">Bekräfta</button>
       }
     </div>
-    <div class="card">
-      <h2 class="section-title">Aviseringar i webbläsaren</h2>
-      <p class="muted">Få push när fliken är i bakgrunden (ny förfrågan, osignerad journal, misslyckad avisering).</p>
-      <button type="button" class="btn-secondary" (click)="enablePush()">Aktivera aviseringar i webbläsaren</button>
-    </div>
   `,
   styles: [`
     .section-title { margin: 0 0 0.35rem; color: var(--color-primary-text); font-size: var(--text-lg); }
@@ -123,39 +118,6 @@ export class AccountSettingsComponent implements OnInit {
         this.provisioningUri.set(res.provisioningUri ?? '');
       },
       error: () => this.toast.error('Kunde inte starta 2FA.')
-    });
-  }
-
-  enablePush(): void {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      this.toast.error('Webbläsaren stödjer inte push.');
-      return;
-    }
-    void Notification.requestPermission().then(async permission => {
-      if (permission !== 'granted') {
-        this.toast.error('Push nekades.');
-        return;
-      }
-      const reg = await navigator.serviceWorker.register('/sw.js').catch(() => null);
-      const push = reg?.pushManager;
-      if (!push) {
-        this.toast.success('Aviseringar är tillåtna i den här fliken.');
-        return;
-      }
-      const sub = await push.subscribe({ userVisibleOnly: true }).catch(() => null);
-      if (!sub) {
-        this.toast.success('Aviseringar är tillåtna i den här fliken.');
-        return;
-      }
-      const json = sub.toJSON();
-      this.api.post('/api/app/notifications/push-subscription', {
-        endpoint: json.endpoint,
-        p256dh: json.keys?.['p256dh'],
-        auth: json.keys?.['auth']
-      }).subscribe({
-        next: () => this.toast.success('Webbläsaraviseringar är aktiverade.'),
-        error: () => this.toast.error('Kunde inte spara prenumerationen.')
-      });
     });
   }
 
