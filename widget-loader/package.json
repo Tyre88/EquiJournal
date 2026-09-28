@@ -2,7 +2,8 @@
   "name": "hastbokning-loader",
   "private": true,
   "scripts": {
-    "build": "esbuild src/loader.ts --bundle --minify --format=iife --outfile=dist/loader.js",
+    "build": "esbuild src/loader.ts --bundle --minify --format=iife --outfile=dist/loader.js && npm run copy:wwwroot",
+    "copy:wwwroot": "cp dist/loader.js ../src/Equine.Api/wwwroot/widget/v1/loader.js",
     "size": "node -e \"const z=require('zlib'),fs=require('fs'); const b=fs.readFileSync('dist/loader.js'); const g=z.gzipSync(b); console.log(b.length,g.length); if(g.length>5120){console.error('loader exceeds 5kB gzip'); process.exit(1)}\""
   },
   "devDependencies": {
