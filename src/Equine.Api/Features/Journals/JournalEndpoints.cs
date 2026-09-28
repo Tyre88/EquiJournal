@@ -2,6 +2,7 @@ using Equine.Api.Auth;
 using Equine.Domain.Entities;
 using Equine.Infrastructure;
 using Equine.Infrastructure.Audit;
+using Equine.Infrastructure.Tenancy;
 using Equine.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -159,7 +160,8 @@ public static class JournalEndpoints
 
         group.MapPost("/search", async (
             JournalSearchRequest request,
-            EquineDbContext db) =>
+            EquineDbContext db,
+            ITenantContext tenant) =>
         {
             List<Guid> ids;
             if (string.IsNullOrWhiteSpace(request.Query))
@@ -170,15 +172,22 @@ public static class JournalEndpoints
                     .Select(j => j.Id)
                     .ToListAsync();
             }
+            else if (!tenant.HasTenant)
+            {
+                ids = [];
+            }
             else
             {
                 var q = request.Query.Trim();
-                ids = await db.Database.SqlQuery<Guid>($@"
-                    SELECT ""Id"" AS ""Value""
+                var tenantId = tenant.TenantId;
+                ids = await db.Database.SqlQuery<Guid>($"""
+                    SELECT "Id" AS "Value"
                     FROM journal_entries
-                    WHERE ""search_vector"" @@ plainto_tsquery('swedish', {q})
-                    ORDER BY ""PerformedAt"" DESC
-                    LIMIT 50").ToListAsync();
+                    WHERE "TenantId" = {tenantId}
+                      AND "search_vector" @@ plainto_tsquery('swedish', {q})
+                    ORDER BY "PerformedAt" DESC
+                    LIMIT 50
+                    """).ToListAsync();
             }
 
             var journals = await db.JournalEntries

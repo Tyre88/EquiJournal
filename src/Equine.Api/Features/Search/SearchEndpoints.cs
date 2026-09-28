@@ -1,5 +1,6 @@
 using Equine.Domain.Entities;
 using Equine.Infrastructure;
+using Equine.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,6 +14,7 @@ public static class SearchEndpoints
             [FromQuery] string? q,
             [FromQuery] int? limit,
             EquineDbContext db,
+            ITenantContext tenant,
             CancellationToken ct) =>
         {
             var query = (q ?? "").Trim();
@@ -44,12 +46,18 @@ public static class SearchEndpoints
                 .ToListAsync(ct);
 
             List<JournalHit> journals;
-            try
+            if (!tenant.HasTenant)
             {
+                journals = [];
+            }
+            else
+            {
+                var tenantId = tenant.TenantId;
                 var journalIds = await db.Database.SqlQuery<Guid>($"""
                     SELECT "Id" AS "Value"
                     FROM journal_entries
-                    WHERE "search_vector" @@ plainto_tsquery('swedish', {query})
+                    WHERE "TenantId" = {tenantId}
+                      AND "search_vector" @@ plainto_tsquery('swedish', {query})
                     ORDER BY "PerformedAt" DESC
                     LIMIT {take}
                     """).ToListAsync(ct);
@@ -65,10 +73,6 @@ public static class SearchEndpoints
                         PerformedAt = j.PerformedAt
                     })
                     .ToListAsync(ct);
-            }
-            catch
-            {
-                journals = [];
             }
 
             var bookings = DateOnly.TryParse(query, out var date)
