@@ -10,7 +10,7 @@ public static class TreatmentTypeEndpoints
 {
     public static IEndpointRouteBuilder MapTreatmentTypeEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/app/treatment-types").RequireAuthorization();
+        var group = app.MapGroup("/api/app/treatment-types").RequireAuthorization("CanManageBookings");
 
         group.MapGet("/", async (EquineDbContext db) =>
         {

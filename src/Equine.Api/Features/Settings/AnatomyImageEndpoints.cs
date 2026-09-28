@@ -11,7 +11,7 @@ public static class AnatomyImageEndpoints
 
     public static IEndpointRouteBuilder MapAnatomyImageEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/app/settings/anatomy-images").RequireAuthorization();
+        var group = app.MapGroup("/api/app/settings/anatomy-images").RequireAuthorization("CanAdminister");
 
         group.MapPost("/", async (IFormFile file, IObjectStorage storage) =>
         {
