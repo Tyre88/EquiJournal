@@ -23,6 +23,9 @@ web/.angular/
 *.suo
 
 # === Secrets ===
+.env
+.env.*
+!.env.dokploy.example
 *.key
 *.p12
 *.pem
