@@ -15,8 +15,6 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.Plan).HasConversion<string>().HasMaxLength(20);
         builder.Property(t => t.SubscriptionStatus).HasConversion<string>().HasMaxLength(20);
-        builder.Property(t => t.StripeCustomerId).HasMaxLength(100);
-        builder.Property(t => t.StripeSubscriptionId).HasMaxLength(100);
         builder.Property(t => t.CreatedAt).HasDefaultValueSql("now()");
         builder.HasIndex(t => t.Slug).IsUnique().HasDatabaseName("ix_tenants_slug");
     }

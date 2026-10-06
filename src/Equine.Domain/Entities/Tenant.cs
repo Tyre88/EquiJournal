@@ -9,8 +9,6 @@ public class Tenant : Entity
     public TenantStatus Status { get; private set; } = TenantStatus.Active;
     public TenantPlan Plan { get; private set; } = TenantPlan.Free;
     public TenantSubscriptionStatus SubscriptionStatus { get; private set; } = TenantSubscriptionStatus.Free;
-    public string? StripeCustomerId { get; private set; }
-    public string? StripeSubscriptionId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
     private Tenant()
