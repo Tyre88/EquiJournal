@@ -7,6 +7,8 @@ namespace Equine.Api.Features.Search;
 
 public static class SearchEndpoints
 {
+    private static readonly TimeZoneInfo Stockholm = TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
+
     public static IEndpointRouteBuilder MapSearchEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/app/search", async (
@@ -147,6 +149,9 @@ public static class SearchEndpoints
         public DateTimeOffset StartsAt { get; set; }
     }
 
-    private static DateTimeOffset ToUtc(DateOnly date) =>
-        new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
+    private static DateTimeOffset ToUtc(DateOnly date)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(local, Stockholm.GetUtcOffset(local)).ToUniversalTime();
+    }
 }
