@@ -59,7 +59,7 @@ services:
       - internal
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 10
       update_config:
         parallelism: 1
         delay: 10s
