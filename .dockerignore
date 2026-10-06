@@ -18,3 +18,4 @@ scripts/backup/
 .env
 .env.*
 !.env.dokploy.example
+docker-compose.dokploy.yml
