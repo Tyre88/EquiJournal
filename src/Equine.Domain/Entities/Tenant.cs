@@ -36,8 +36,4 @@ public class Tenant : Entity
             next = TenantSlug.FromName($"{next}-klinik");
         Slug = next;
     }
-
-    public void Suspend() => Status = TenantStatus.Suspended;
-
-    public void Activate() => Status = TenantStatus.Active;
 }

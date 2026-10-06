@@ -11,7 +11,6 @@ public class ApplicationUser : IdentityUser<Guid>
     public bool IsFirstLogin { get; set; }
     public DateTimeOffset? CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
-    public DateTimeOffset? DeletedAt { get; set; }
     public string? RefreshTokenHash { get; set; }
     public DateTimeOffset? RefreshTokenExpiresAt { get; set; }
 }

@@ -1,33 +1,18 @@
 using Equine.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Equine.Infrastructure.Notifications;
 
 public static class FollowUpNotificationHelper
 {
-    public static async Task<Dictionary<string, string>> BuildPayloadAsync(
+    public static Dictionary<string, string> BuildPayload(
         Horse horse,
         string clinicName,
-        string publicBaseUrl,
-        EquineDbContext db,
-        CancellationToken ct = default)
+        string publicBaseUrl)
     {
         var last = horse.JournalEntries
             .Where(j => j.Status == JournalStatus.Signed)
             .OrderByDescending(j => j.PerformedAt)
             .FirstOrDefault();
-
-        var slug = "";
-        if (last?.TreatmentTypeId is Guid tid)
-        {
-            var treatment = await db.TreatmentTypes.AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == tid, ct);
-            slug = treatment?.Slug ?? "";
-        }
-
-        var bookingLink = string.IsNullOrWhiteSpace(slug)
-            ? $"{publicBaseUrl}/widget/"
-            : $"{publicBaseUrl}/widget/?behandling={Uri.EscapeDataString(slug)}";
 
         return new Dictionary<string, string>
         {
@@ -37,9 +22,7 @@ public static class FollowUpNotificationHelper
             ["behandling"] = last?.TreatmentTypeName ?? "",
             ["kliniknamn"] = clinicName,
             ["portalänk"] = $"{publicBaseUrl}/portal/",
-            ["portallank"] = $"{publicBaseUrl}/portal/",
-            ["bokningslänk"] = bookingLink,
-            ["bokningslank"] = bookingLink
+            ["portallank"] = $"{publicBaseUrl}/portal/"
         };
     }
 }

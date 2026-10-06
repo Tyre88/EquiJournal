@@ -128,6 +128,4 @@ public class TreatmentType : TenantScopedEntity
         Status = TreatmentTypeStatus.Active;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-
-    public bool IsActive() => Status == TreatmentTypeStatus.Active;
 }

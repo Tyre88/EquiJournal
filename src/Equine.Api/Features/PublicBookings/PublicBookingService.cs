@@ -335,13 +335,6 @@ public sealed class PublicBookingService
         await _notifier.OnRescheduledAsync(line, line.Owner.Email, line.Owner.Name, cancellationToken);
     }
 
-    public async Task NotifyApprovedAsync(BookingLine line, CancellationToken cancellationToken = default)
-    {
-        if (line.Source != BookingSource.Widget) return;
-        var owner = line.Owner ?? await _db.Owners.FirstAsync(o => o.Id == line.OwnerId, cancellationToken);
-        await _notifier.OnConfirmedAsync(line, owner.Email, owner.Name, cancellationToken);
-    }
-
     private async Task<BookingLine?> ResolveLineAsync(string token, string purpose, CancellationToken cancellationToken)
     {
         if (!_tokens.TryUnprotect(token, purpose, out var lineId, out var expired) || expired)

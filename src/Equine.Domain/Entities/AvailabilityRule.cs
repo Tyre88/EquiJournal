@@ -65,13 +65,4 @@ public class AvailabilityRule : TenantScopedEntity
         if (active.HasValue) Active = active.Value;
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-
-    public bool AppliesOn(DateOnly date)
-    {
-        if (!Active) return false;
-        if (DayOfWeek != date.DayOfWeek) return false;
-        if (EffectiveFrom is DateOnly from && date < from) return false;
-        if (EffectiveTo is DateOnly to && date > to) return false;
-        return true;
-    }
 }

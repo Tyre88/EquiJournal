@@ -145,16 +145,9 @@ public class Horse : SoftDeletableEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public bool CanArchive() => !JournalEntries.Any(e => e.Status == JournalStatus.Signed);
-
-    public bool HasSignedJournals() => JournalEntries.Any(e => e.Status == JournalStatus.Signed);
-
     public void Archive()
     {
         Status = "Arkiverad";
         UpdatedAt = DateTimeOffset.UtcNow;
     }
-
-    public string ToSearchVector() => $"{Name} {Breed} {Colour} {Markings}";
-    public string OwnerSearchVector() => Owner?.Name ?? string.Empty;
 }

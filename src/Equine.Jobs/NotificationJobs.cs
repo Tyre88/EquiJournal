@@ -76,8 +76,8 @@ public sealed class NotificationJobs
                 && n.CreatedAt >= dedupCutoff);
             if (recentlySent) continue;
 
-            var payload = await FollowUpNotificationHelper.BuildPayloadAsync(
-                horse, settings.Clinic, widgetSettings.PublicBaseUrl, db);
+            var payload = FollowUpNotificationHelper.BuildPayload(
+                horse, settings.Clinic, widgetSettings.PublicBaseUrl);
             if (!string.IsNullOrWhiteSpace(horse.Owner.Email) && !horse.Owner.EmailInvalid)
             {
                 await scheduler.EnqueueAsync(

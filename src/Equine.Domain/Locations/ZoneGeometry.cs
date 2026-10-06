@@ -10,9 +10,6 @@ public static class ZoneGeometryKinds
 {
     public const string Polygon = "polygon";
     public const string Circle = "circle";
-
-    public static bool IsKnown(string? kind) =>
-        kind is Polygon or Circle;
 }
 
 public readonly record struct ZoneShape(
