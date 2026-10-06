@@ -60,8 +60,8 @@ public sealed class SlotQueryService
         TreatmentType treatment,
         CancellationToken cancellationToken = default)
     {
-        var fromUtc = DateTime.SpecifyKind(query.From.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
-        var toUtc = DateTime.SpecifyKind(query.To.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var fromUtc = StockholmTime.ToUtcStart(query.From);
+        var toUtc = StockholmTime.ToUtcEnd(query.To);
 
         var rules = await _db.AvailabilityRules.AsNoTracking()
             .Where(r => r.PractitionerId == query.PractitionerId && r.Active)

@@ -33,8 +33,8 @@ public sealed class DriveLogService
 
     public async Task<DriveLogReport> GetAsync(DateOnly from, DateOnly to, CancellationToken ct)
     {
-        var start = ToUtcStart(from);
-        var end = ToUtcEnd(to);
+        var start = StockholmTime.ToUtcStart(from);
+        var end = StockholmTime.ToUtcEnd(to);
         var settings = await _practice.GetAsync(ct);
         var homeResolved = await _places.ResolveHomeAsync(settings, ct);
         var home = new DriveLogHome(homeResolved.Address, homeResolved.Coords?.Lat, homeResolved.Coords?.Lon);
@@ -127,14 +127,6 @@ public sealed class DriveLogService
 
     private static DateOnly LocalDate(DateTimeOffset value) =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(value, Stockholm).DateTime);
-
-    private static DateTimeOffset ToUtcStart(DateOnly date)
-    {
-        var local = date.ToDateTime(TimeOnly.MinValue);
-        return new DateTimeOffset(local, Stockholm.GetUtcOffset(local)).ToUniversalTime();
-    }
-
-    private static DateTimeOffset ToUtcEnd(DateOnly date) => ToUtcStart(date.AddDays(1));
 }
 
 public sealed record DriveLogReport(DriveLogMeta Meta, IReadOnlyList<DriveLogTripRow> Trips);
