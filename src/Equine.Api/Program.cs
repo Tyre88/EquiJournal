@@ -165,7 +165,6 @@ else
     builder.Services.AddSingleton<RecordingSmsSender>();
     builder.Services.AddSingleton<ISmsSender>(sp => sp.GetRequiredService<RecordingSmsSender>());
 }
-builder.Services.AddSingleton<IWebPushSender, RecordingWebPushSender>();
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -907,14 +906,6 @@ async Task EnableExtensions(EquineDbContext context)
             ""Link"" varchar(400) NULL,
             ""CreatedAt"" timestamptz NOT NULL DEFAULT now(),
             ""ReadAt"" timestamptz NULL
-        );
-        CREATE TABLE IF NOT EXISTS ""web_push_endpoints"" (
-            ""Id"" uuid PRIMARY KEY,
-            ""UserId"" uuid NOT NULL,
-            ""Endpoint"" varchar(1000) NOT NULL,
-            ""P256dh"" varchar(255) NULL,
-            ""Auth"" varchar(255) NULL,
-            ""CreatedAt"" timestamptz NOT NULL DEFAULT now()
         );
         CREATE TABLE IF NOT EXISTS ""consumed_magic_link_tokens"" (
             ""TokenHash"" varchar(64) PRIMARY KEY,

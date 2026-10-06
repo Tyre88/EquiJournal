@@ -10,7 +10,7 @@ public static class TenancySchemaUpgrade
         "attachments", "locations", "zones", "availability_rules", "time_off", "visits",
         "booking_lines", "widget_settings", "practice_settings", "notification_settings",
         "notification_templates", "scheduled_notifications", "notification_log",
-        "in_app_notifications", "web_push_endpoints", "audit_log"
+        "in_app_notifications", "audit_log"
     ];
 
     public static async Task ApplyAsync(EquineDbContext db, CancellationToken cancellationToken = default)
@@ -97,7 +97,6 @@ public static class TenancySchemaUpgrade
                 UPDATE scheduled_notifications SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
                 UPDATE notification_log SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
                 UPDATE in_app_notifications SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
-                UPDATE web_push_endpoints SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
                 UPDATE audit_log SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
                 IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'AspNetUsers') THEN
                     UPDATE "AspNetUsers" SET "TenantId" = tenant_id WHERE "TenantId" IS NULL;
