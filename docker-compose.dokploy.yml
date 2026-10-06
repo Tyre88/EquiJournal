@@ -8,9 +8,8 @@
 # before the first deploy and after each source change:
 #   docker compose -f docker-compose.dokploy.yml build api
 #
-# Named volumes are node-local. MinIO, Mailpit, and the API data-protection
-# keys are single-writer, so schedule those tasks on the same node (or point
-# the volumes at shared storage) before relying on the second replica.
+# Named volumes are node-local. The three API replicas share data-protection
+# keys, so schedule them on the same node or point that volume at shared storage.
 # The stack name comes from Dokploy (`docker stack deploy` rejects a top-level `name`).
 
 services:
@@ -60,7 +59,7 @@ services:
       - internal
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 3
       update_config:
         parallelism: 1
         delay: 10s
@@ -105,7 +104,7 @@ services:
       - internal
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
       update_config:
         parallelism: 1
         delay: 10s
@@ -131,7 +130,7 @@ services:
       - internal
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
       update_config:
         parallelism: 1
         delay: 10s
@@ -165,7 +164,7 @@ services:
       - internal
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 1
       restart_policy:
         condition: on-failure
         delay: 5s
