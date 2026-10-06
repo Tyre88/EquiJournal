@@ -15,7 +15,6 @@ export class AppComponent implements OnInit {
   private theme = inject(ThemeService);
 
   ngOnInit(): void {
-    void this.theme;
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(reg => {
         // Pick up SW fixes immediately instead of waiting for the next tab close.

@@ -8,7 +8,6 @@ const STORAGE_KEY = 'theme-preference';
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   readonly preference = signal<ThemePreference>('system');
-  readonly resolved = signal<ResolvedTheme>('light');
 
   constructor() {
     this.preference.set(readPreference());
@@ -29,7 +28,6 @@ export class ThemeService {
     const resolved: ResolvedTheme = pref === 'system'
       ? (systemPrefersDark() ? 'dark' : 'light')
       : pref;
-    this.resolved.set(resolved);
     document.documentElement.setAttribute('data-theme', resolved);
   }
 }
