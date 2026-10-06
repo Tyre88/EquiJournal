@@ -11,8 +11,7 @@
 # Named volumes are node-local. MinIO, Mailpit, and the API data-protection
 # keys are single-writer, so schedule those tasks on the same node (or point
 # the volumes at shared storage) before relying on the second replica.
-
-name: equilog
+# The stack name comes from Dokploy (`docker stack deploy` rejects a top-level `name`).
 
 services:
   api:
