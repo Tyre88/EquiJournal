@@ -518,7 +518,6 @@ async Task BackfillAnatomyFindingOptions(EquineDbContext context)
         type.Update(
             publicDescription: type.PublicDescription,
             colour: type.Colour,
-            allowedLocationTypes: type.AllowedLocationTypes,
             followUpIntervalDays: type.FollowUpIntervalDays,
             journalTemplateJson: migrated);
     }

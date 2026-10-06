@@ -38,8 +38,7 @@ public enum TreatmentTypeStatus
 
 public enum LocationType
 {
-    ClientStable,
-    FixedSite
+    ClientStable
 }
 
 public enum BookingStatus

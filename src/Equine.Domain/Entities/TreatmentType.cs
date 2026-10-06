@@ -18,7 +18,6 @@ public class TreatmentType : TenantScopedEntity
     public bool RequiresApproval { get; private set; }
     public int MinNoticeHours { get; private set; }
     public int MaxAdvanceDays { get; private set; }
-    public string? AllowedLocationTypes { get; private set; }
     public int? FollowUpIntervalDays { get; private set; }
     public bool ShareSummaryWithClient { get; private set; }
     public TreatmentTypeStatus Status { get; private set; } = TreatmentTypeStatus.Active;
@@ -43,7 +42,6 @@ public class TreatmentType : TenantScopedEntity
         bool requiresApproval = false,
         int minNoticeHours = 0,
         int maxAdvanceDays = 30,
-        string? allowedLocationTypes = null,
         int? followUpIntervalDays = null,
         string? journalTemplateJson = null,
         string? slug = null)
@@ -62,7 +60,6 @@ public class TreatmentType : TenantScopedEntity
         RequiresApproval = requiresApproval;
         MinNoticeHours = minNoticeHours;
         MaxAdvanceDays = maxAdvanceDays;
-        AllowedLocationTypes = allowedLocationTypes;
         FollowUpIntervalDays = followUpIntervalDays;
         ShareSummaryWithClient = false;
         JournalTemplateJson = journalTemplateJson;
@@ -85,7 +82,6 @@ public class TreatmentType : TenantScopedEntity
         bool? requiresApproval = null,
         int? minNoticeHours = null,
         int? maxAdvanceDays = null,
-        string? allowedLocationTypes = null,
         int? followUpIntervalDays = null,
         string? journalTemplateJson = null,
         string? slug = null,
@@ -106,7 +102,6 @@ public class TreatmentType : TenantScopedEntity
         if (requiresApproval.HasValue) RequiresApproval = requiresApproval.Value;
         if (minNoticeHours.HasValue) MinNoticeHours = minNoticeHours.Value;
         if (maxAdvanceDays.HasValue) MaxAdvanceDays = maxAdvanceDays.Value;
-        AllowedLocationTypes = allowedLocationTypes;
         FollowUpIntervalDays = followUpIntervalDays;
         if (shareSummaryWithClient.HasValue) ShareSummaryWithClient = shareSummaryWithClient.Value;
         if (journalTemplateJson is not null)
