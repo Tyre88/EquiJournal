@@ -49,8 +49,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
-using FluentValidation;
-using FluentValidation.AspNetCore;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Equine.Infrastructure.Audit;
@@ -79,18 +77,15 @@ if (!string.IsNullOrEmpty(pgPassword))
     builder.Configuration["ConnectionStrings:Default"] = connection.ConnectionString;
 }
 
-// ── Serilog ──
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "Equine.Api")
     .WriteTo.Console()
-    .WriteTo.File("logs/equine-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30)
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-// ── Services ──
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -189,8 +184,6 @@ builder.Services.AddHttpClient("Osrm", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("HastJournal/1.0 (schema travel)");
     client.Timeout = TimeSpan.FromSeconds(8);
 });
-builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -237,11 +230,9 @@ builder.Services.AddSingleton<ICorsPolicyProvider, DynamicCorsPolicyProvider>();
 
 var app = builder.Build();
 
-// ── Seeding ──
 await EnsureDatabaseExists(app);
 await SeedAdminUser(app);
 
-// ── Middleware pipeline ──
 app.UseSerilogRequestLogging();
 
 app.UseCorrelationId();
@@ -267,7 +258,6 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseMiddleware<Equine.Api.Middleware.WidgetCspMiddleware>();
 app.UseAuthorization();
 
-// ── Health checks ──
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     Predicate = r => r.Tags.Contains("live")
@@ -277,7 +267,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = r => r.Tags.Contains("ready")
 });
 
-// ── API Routes ──
 var publicGroup = app.MapGroup("/api/public");
 var appGroup = app.MapGroup("/api/app");
 
@@ -568,7 +557,6 @@ async Task EnsureZoneGeometryColumns(EquineDbContext context)
     ");
 }
 
-// ── Admin User Seeder ──
 async Task SeedAdminUser(WebApplication app)
 {
     using var scope = app.Services.CreateAsyncScope();
