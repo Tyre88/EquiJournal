@@ -20,20 +20,16 @@ Dokploy takes nightly `pg_dump` archives to an EU S3-compatible bucket (`equine/
 
 2. Download the latest dump and attachment prefix from S3 (rclone, AWS CLI, or Dokploy download).
 
-3. Restore the database:
+3. Restore the database with [scripts/backup/restore.sh](../../scripts/backup/restore.sh). It passes host, port, user, and database as libpq flags (`psql` / `pg_restore` will not accept an Npgsql connection string):
 
    ```bash
-   # custom-format / gzip dump from Dokploy
-   gunzip -c latest.sql.gz | psql "Host=localhost;Port=5432;Database=equijournal;Username=postgres;Password=postgres"
-   # or:
-   pg_restore --no-owner --role=postgres -d equijournal latest.dump
+   # local compose defaults: localhost:5432, database equijournal, user postgres
+   PGPASSWORD=postgres ./scripts/backup/restore.sh /path/to/latest.sql.gz
    ```
-
-   Helpers: [scripts/backup/restore.sh](../../scripts/backup/restore.sh).
 
 4. Restore attachments into the MinIO bucket `equine-attachments` (rclone or `mc mirror`).
 
-5. Start the API against that connection string and MinIO (`Storage__*` env vars). Do **not** enable Postmark/46elks.
+5. Start the API against the restored database and MinIO (`Storage__*` env vars). Do **not** enable Postmark/46elks.
 
 6. Open the known journal in admin. Confirm body text, amendments, attachment names and that downloads open.
 
