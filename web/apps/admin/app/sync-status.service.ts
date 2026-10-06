@@ -1,12 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 
-export type SyncState = 'online' | 'offline' | 'syncing' | 'error';
+export type SyncState = 'online' | 'offline' | 'syncing';
 
 @Injectable({ providedIn: 'root' })
 export class SyncStatusService {
   readonly state = signal<SyncState>('online');
   readonly pendingCount = signal(0);
-  readonly message = signal('');
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -21,14 +20,8 @@ export class SyncStatusService {
     this.pendingCount.set(count);
   }
 
-  setError(msg: string): void {
-    this.state.set('error');
-    this.message.set(msg);
-  }
-
   setIdle(): void {
     this.state.set(navigator.onLine ? 'online' : 'offline');
     this.pendingCount.set(0);
-    this.message.set('');
   }
 }

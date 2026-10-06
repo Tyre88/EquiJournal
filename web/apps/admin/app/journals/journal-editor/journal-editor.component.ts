@@ -1,9 +1,9 @@
 import { Component, OnInit, DestroyRef, OnChanges, OnDestroy, inject, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ConfirmService, EjPageHeaderComponent, ToastService } from '@equijournal/ui';
 import { BodymapComponent, BodyMapMarker } from '../bodymap/bodymap.component';
@@ -82,7 +82,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 @Component({
   selector: 'app-journal-editor',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent],
+  imports: [ReactiveFormsModule, BodymapComponent, AnatomyMapComponent, EjPageHeaderComponent],
   template: `
     <div class="page">
       <ej-page-header [title]="isNew() ? 'Ny journal' : 'Redigera journal'" backHref="/journals">
@@ -94,7 +94,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
         }
 
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <!-- Header section -->
           <div class="card editor-section">
             <h2>Information</h2>
 
@@ -136,7 +135,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
                     <span class="search-loading">Söker...</span>
                   }
                 </div>
-                <div class="selected-horse" formArrayName="horseId">
+                <div class="selected-horse">
                   @if (selectedHorse()) {
                     <span class="selected-tag">
                       {{ selectedHorse()!.name }} ({{ selectedHorse()!.ownerName }})
@@ -180,7 +179,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             </div>
           </div>
 
-          <!-- Base fields (required) -->
           <div class="card editor-section">
             <h2>Basfält <span class="muted">(obligatoriska)</span></h2>
 
@@ -226,7 +224,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             </div>
           </div>
 
-          <!-- Base fields (optional) -->
           <div class="card editor-section">
             <h2>Övriga fält</h2>
 
@@ -241,7 +238,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             </div>
           </div>
 
-          <!-- Standard anatomy maps (always present) -->
           <div class="card editor-section">
             <h2>Anatomikartor</h2>
             @for (field of standardAnatomyFields(); track field.key) {
@@ -261,7 +257,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             }
           </div>
 
-          <!-- Template fields -->
           @if (templateFields().length > 0) {
             <div class="card editor-section">
               <h2>Shablonfält</h2>
@@ -364,7 +359,6 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
             </div>
           }
 
-          <!-- Attachments -->
           <div class="card editor-section">
             <h2>Bilagor</h2>
 
@@ -512,7 +506,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     return '';
   });
 
-  showSignDialog = signal(false);
   anatomyImageUrls = signal<Record<string, string>>({});
 
   private autosaveTimer: ReturnType<typeof setInterval> | null = null;
@@ -1005,7 +998,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
     const uploadPromises = files.map(file => {
       const formData = new FormData();
       formData.append('file', file);
-      return this.http.post<any>(`${API_URL}/api/app/journals/${id}/attachments`, formData).toPromise();
+      return firstValueFrom(this.http.post<any>(`${API_URL}/api/app/journals/${id}/attachments`, formData));
     });
 
     Promise.all(uploadPromises)
@@ -1104,14 +1097,6 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
   private createJournal(): void {
     this.saving.set(true);
 
-    const formValue = this.form.value;
-    const templateData: Record<string, any> = {};
-    for (const [key, control] of Object.entries(this.form.controls)) {
-      if (key.startsWith('tpl_')) {
-        templateData[key.substring(4)] = control.value;
-      }
-    }
-
     const payload = this.buildPayload();
 
     this.http.post<any>(`${API_URL}/api/app/journals`, payload).subscribe({
@@ -1209,7 +1194,7 @@ export class JournalEditorComponent implements OnInit, OnDestroy {
       serverId: this.journalId() && this.journalId() !== 'new' ? this.journalId() : null,
       payload,
       updatedAt: new Date().toISOString(),
-      syncStatus: navigator.onLine ? 'pending' : 'pending'
+      syncStatus: 'pending'
     }).then(() => {
       if (!navigator.onLine) this.syncStatus.set('offline');
     });

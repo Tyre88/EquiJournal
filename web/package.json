@@ -9,9 +9,7 @@
     "build": "ng build admin && ng build widget && ng build portal",
     "build:admin": "ng build admin",
     "build:widget": "ng build widget",
-    "build:loader": "npm --prefix ../widget-loader run build && npm --prefix ../widget-loader run size",
-    "lint": "ng lint",
-    "lint:fix": "ng lint --fix"
+    "build:loader": "npm --prefix ../widget-loader run build && npm --prefix ../widget-loader run size"
   },
   "private": true,
   "dependencies": {

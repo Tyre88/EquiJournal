@@ -4,10 +4,8 @@ import {
   output,
   OnInit,
   inject,
-  signal,
-  computed
+  signal
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { ConfirmService, ToastService } from '@equijournal/ui';
@@ -42,7 +40,7 @@ interface TemplateData {
 @Component({
   selector: 'app-template-builder',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, AnatomyMapComponent],
+  imports: [ReactiveFormsModule, AnatomyMapComponent],
   template: `
     <div class="template-builder">
       <header class="builder-header">
@@ -56,7 +54,6 @@ interface TemplateData {
       </header>
 
       <div class="builder-body">
-        <!-- Sections list -->
         <div class="sections-panel">
           <div class="panel-header">
             <h3>Sektioner</h3>
@@ -74,7 +71,6 @@ interface TemplateData {
               @for (section of sections(); track section.id; let index = $index) {
                 <div class="section-card" [class.invalid]="sectionErrors()[index]?.isValid === false">
                   <div class="section-header">
-                    <div class="drag-handle">⠿</div>
                     <span class="section-number">#{{ index + 1 }}</span>
                     <div class="reorder-buttons">
                       <button
@@ -164,20 +160,6 @@ interface TemplateData {
                       </div>
                     }
 
-                    @if (section.type === 'checkbox') {
-                      <div class="form-group">
-                        <label for="defaultValue-{{ section.id }}">Standardvärde</label>
-                        <select
-                          id="defaultValue-{{ section.id }}"
-                          [formControl]="getControl(section.id, 'defaultValue')"
-                        >
-                          <option value="">Tom</option>
-                          <option value="true">Satt</option>
-                          <option value="false">Inte satt</option>
-                        </select>
-                      </div>
-                    }
-
                     @if (section.type === 'anatomy-map') {
                       <p class="hint">Muskel- och skelettkartor ingår automatiskt i alla journaler. Lägg bara till extra anatomikartor här om du behöver ytterligare kartor med egna fyndalternativ.</p>
                       <div class="form-group">
@@ -227,7 +209,6 @@ interface TemplateData {
           }
         </div>
 
-        <!-- JSON preview / Form preview -->
         @if (previewMode()) {
           <div class="preview-panel">
             <div class="panel-header">
@@ -342,7 +323,6 @@ interface TemplateData {
       margin-bottom: 0.85rem;
     }
     .section-number { font-weight: 700; color: var(--color-text-muted); }
-    .drag-handle { color: var(--color-text-muted); cursor: default; }
     .reorder-buttons { display: flex; gap: 0.25rem; }
     .btn-reorder, .btn-remove {
       min-width: 36px;
@@ -409,8 +389,6 @@ export class TemplateBuilderComponent implements OnInit {
   anatomyImageBusy = signal<string | null>(null);
   anatomyPreviewUrls = signal<Record<string, string>>({});
 
-  private typeOptions = ['text', 'textarea', 'number', 'select', 'multiselect', 'checkbox', 'date', 'bodymap', 'anatomy-map'];
-
   ngOnInit(): void {
     if (this.initialTemplate()) {
       try {
@@ -431,9 +409,7 @@ export class TemplateBuilderComponent implements OnInit {
             customImageKey: s.customImageKey || ''
           })));
         }
-      } catch {
-        // Invalid JSON, start empty
-      }
+      } catch { /* ignore */ }
     }
     this.buildFormMap();
     this.updateJson();
@@ -448,7 +424,6 @@ export class TemplateBuilderComponent implements OnInit {
         options: [section.options || '', section.type === 'select' || section.type === 'multiselect' ? Validators.required : Validators.nullValidator],
         min: [section.minValue ?? ''],
         max: [section.maxValue ?? ''],
-        defaultValue: [''],
         preset: [section.preset || 'horse-muscles-standard'],
         findingOptions: [section.findingOptions || DEFAULT_FINDINGS, section.type === 'anatomy-map' ? Validators.required : Validators.nullValidator],
         customImageKey: [section.customImageKey || '']
@@ -485,7 +460,6 @@ export class TemplateBuilderComponent implements OnInit {
       options: ['', Validators.nullValidator],
       min: [''],
       max: [''],
-      defaultValue: [''],
       preset: ['horse-muscles-standard'],
       findingOptions: [DEFAULT_FINDINGS],
       customImageKey: ['']
@@ -526,7 +500,6 @@ export class TemplateBuilderComponent implements OnInit {
       return copy;
     });
 
-    // Reorder form map
     const map = new Map(this.sectionForms());
     const entries = Array.from(map.entries());
     const oldOrder = entries.map(e => e[0]);
@@ -633,7 +606,6 @@ export class TemplateBuilderComponent implements OnInit {
     navigator.clipboard.writeText(this.templateJson()).then(() => {
       this.toast.success('JSON kopierad.');
     }).catch(() => {
-      // Fallback: select the text
       const pre = document.querySelector('.json-preview pre');
       if (pre) {
         const range = document.createRange();
@@ -674,7 +646,6 @@ export class TemplateBuilderComponent implements OnInit {
     const allValid = errors.every(e => e.isValid === true);
 
     if (!allValid) {
-      // Scroll to first invalid section
       const firstInvalid = errors.findIndex(e => e.isValid === false);
       if (firstInvalid >= 0) {
         const firstInvalidEl = document.querySelectorAll('.section-card')[firstInvalid];

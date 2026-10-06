@@ -200,7 +200,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
     switch (this.sync.state()) {
       case 'offline': return 'Offline';
       case 'syncing': return `Synkar (${this.sync.pendingCount()})`;
-      case 'error': return this.sync.message() || 'Synkfel';
       default: return '';
     }
   }
