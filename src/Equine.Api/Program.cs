@@ -1,5 +1,4 @@
 using Equine.Api;
-using Equine.Api.Auth;
 using Equine.Api.Endpoints;
 using Equine.Api.Middleware;
 using Equine.Api.Features.Owners;
@@ -381,10 +380,6 @@ appGroup.MapPatch("/me", async (
 
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        Authorization = [new HangfireAdminFilter()]
-    });
     RecurringJob.AddOrUpdate<NotificationJobs>("dispatch-due", j => j.DispatchDue(), "*/1 * * * *");
     RecurringJob.AddOrUpdate<NotificationJobs>("expire-unverified", j => j.ExpireUnverified(), "*/1 * * * *");
     RecurringJob.AddOrUpdate<NotificationJobs>("follow-ups", j => j.ScanFollowUps(), "0 7 * * *");

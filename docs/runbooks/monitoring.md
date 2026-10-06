@@ -15,7 +15,7 @@ Alert to the practitioner’s **SMS** (and optionally email). Acceptance: stop t
 |---|---|---|
 | API 5xx spike | Traefik/access logs or Better Stack | Check Serilog `logs/equine-*.log`, recent deploy |
 | Failed notifications | Per-failure email already sent; weekly digest counts them | [bounce-storm.md](bounce-storm.md), provider status |
-| Hangfire stalled | `/hangfire` — `dispatch-due` should succeed every minute | [stuck-job-queue.md](stuck-job-queue.md) |
+| Hangfire stalled | API logs — `dispatch-due` should succeed every minute | [stuck-job-queue.md](stuck-job-queue.md) |
 | Disk > 80% | VPS / Dokploy host metrics | Expand volume, prune unused images |
 | DB connections | Postgres `pg_stat_activity` | Restart app (leaked scopes) or raise `max_connections` carefully |
 | Backup older than 26h | Dokploy backup UI; weekly digest reminder | [backup.md](backup.md) |
